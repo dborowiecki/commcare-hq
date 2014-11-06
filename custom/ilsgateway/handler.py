@@ -1,4 +1,6 @@
 import re
+from custom.ilsgateway.ghana.handlers.requisition import RequisitionHandler
+from custom.ilsgateway.ghana.handlers.undo import UndoHandler
 
 from custom.ilsgateway.tanzania.handlers.arrived import ArrivedHandler
 from custom.ilsgateway.tanzania.handlers.delivered import DeliveredHandler
@@ -57,6 +59,9 @@ def handle(verified_contact, text, msg=None):
         ('yes', 'ndio', 'ndyo'): YesHandler,
         ('register', 'reg', 'join', 'sajili'): RegisterHandler,
         ('test',): MessageInitiatior,
+        #TODO: cos do ogarniecia z 'yes' bo sie powtarza klucz
+        ('yes', 'no', 'y', 'n'): RequisitionHandler,
+        ('"undo', 'replace', 'revoke'): UndoHandler,
         ('not',): not_function(args[0]) if args else None
     }
 

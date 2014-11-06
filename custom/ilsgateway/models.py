@@ -2,7 +2,7 @@ from couchdbkit.ext.django.schema import Document, BooleanProperty, StringProper
 from casexml.apps.stock.models import DocDomainMapping
 from datetime import datetime
 from django.db import models
-from corehq.apps.commtrack.models import Product
+from corehq.apps.commtrack.models import Product, SupplyPointCase
 from dimagi.utils.dates import force_to_datetime
 
 
@@ -417,3 +417,9 @@ class ReportRun(models.Model):
         """
         qs = cls.objects.filter(complete=True, has_error=False, domain=domain)
         return qs.order_by("-start_run")[0] if qs.count() else None
+
+#
+# class RequisitionReport(models.Model):
+#     supply_point = models.ForeignKey(SupplyPointCase)
+#     submitted = models.BooleanField()
+#     report_date = models.DateTimeField(default=datetime.utcnow)
