@@ -403,6 +403,7 @@ class ReportRun(models.Model):
     complete = models.BooleanField(default=False)
     has_error = models.BooleanField(default=False)
     domain = models.CharField(max_length=60)
+    location = models.ForeignKey(SQLLocation, null=True)
 
     @classmethod
     def last_success(cls, domain):

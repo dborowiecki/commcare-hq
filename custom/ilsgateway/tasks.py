@@ -44,7 +44,7 @@ ILS_FACILITIES = [948, 998, 974, 1116, 971, 1122, 921, 658, 995, 1057,
                   1180, 1033, 975, 1056, 970, 742, 985, 2194, 935, 1128,
                   1172, 773, 916, 1194, 4862, 1003, 994, 1034, 1113, 1167,
                   949, 987, 986, 960, 1046, 942, 972, 21, 952, 930,
-                  1170, 1067, 006, 752, 747, 1176, 746, 755, 1102, 924,
+                  1170, 1067, 1006, 752, 747, 1176, 746, 755, 1102, 924,
                   744, 1109, 760, 922, 945, 988, 927, 1045, 1060, 938,
                   1041, 1101, 1107, 939, 910, 934, 929, 1111, 1174, 1044,
                   1008, 914, 1040, 1035, 1126, 1203, 912, 990, 908, 654,
@@ -226,15 +226,15 @@ def report_run(domain):
     start_date = (datetime.min if not last_run else last_run.end)
     end_date = datetime.utcnow()
 
-    running = ReportRun.objects.filter(complete=False, domain=domain)
+    running = ReportRun.objects.filter(complete=False, domain=domain).order_by('-start_run')
     if running.count() > 0:
-        raise Exception("Warehouse already running, will do nothing...")
-
-    # start new run
-    new_run = ReportRun.objects.create(start=start_date, end=end_date,
-                                       start_run=datetime.utcnow(), domain=domain)
+        new_run = running[0]
+    else:
+        # start new run
+        new_run = ReportRun.objects.create(start=start_date, end=end_date,
+                                           start_run=datetime.utcnow(), domain=domain)
     try:
-        populate_report_data(start_date, end_date, domain)
+        populate_report_data(start_date, end_date, domain, new_run)
     except Exception, e:
         # just in case something funky happened in the DB
         if isinstance(e, DatabaseError):
