@@ -8,7 +8,7 @@ from corehq.apps.reports.commtrack.util import get_relevant_supply_point_ids
 from corehq.apps.reports.datatables import DataTablesHeader, DataTablesColumn
 from corehq.apps.reports.filters.dates import DatespanFilter
 from corehq.apps.reports.filters.fixtures import AsyncLocationFilter
-from corehq.apps.users.models import CommCareUser, CouchUser
+from corehq.apps.users.models import CommCareUser, CouchUser, WebUser
 from custom.ewsghana.filters import ProductByProgramFilter
 from custom.ewsghana.reports import EWSData, REORDER_LEVEL, MAXIMUM_LEVEL, MultiReport
 from dimagi.utils.decorators.memoized import memoized
@@ -343,10 +343,10 @@ class FacilityUsers(EWSData, StockLevelsReportMixin):
         rows = []
         sms_users = [u[0] for u in self.get_users_by_location_id(self.config['domain'],
                                                                  self.config['location_id'])]
-        for user in CouchUser.by_domain(self.config['domain']):
+        for user in WebUser.by_domain(self.config['domain']):
             if user.name not in sms_users:
-                if hasattr(user, 'domain_membership') \
-                        and user.domain_membership['location_id'] == self.config['location_id']:
+                domain_membership = user.get_domain_membership(self.config['domain'])
+                if domain_membership and domain_membership['location_id'] == self.config['location_id']:
                     rows.append([user.name, user.get_email()])
         return rows
 
