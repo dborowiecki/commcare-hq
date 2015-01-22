@@ -1,10 +1,17 @@
+from django.core.urlresolvers import reverse
+from sqlagg.filters import EQ
 from corehq.apps.reports.commtrack.standard import CommtrackReportMixin
+from corehq.apps.reports.sqlreport import SqlData, DataFormatter, TableDataFormat
 from corehq.apps.reports.standard import CustomProjectReport, ProjectReportParametersMixin, DatespanMixin
 from dimagi.utils.decorators.memoized import memoized
 from corehq.apps.locations.models import Location
 
 REORDER_LEVEL = 1.5
 MAXIMUM_LEVEL = 3
+
+
+def get_url(view_name, text, domain):
+    return '<a href="%s">%s</a>' % (reverse(view_name, args=[domain]), text)
 
 
 class EWSData(object):
@@ -41,6 +48,37 @@ class EWSData(object):
             return [location]
 
 
+class EWSSqlData(SqlData):
+    show_table = True
+    show_total = False
+    use_datatables = False
+    show_chart = False
+    no_value = {'sort_key': 0, 'html': 0}
+    title = ''
+    slug = ''
+
+    @property
+    def filters(self):
+        return [EQ('location_id', 'location_id'), EQ('domain', 'domain')]
+
+    @property
+    def group_by(self):
+        return []
+
+    @property
+    def columns(self):
+        return []
+
+    @property
+    def headers(self):
+        return []
+
+    @property
+    def rows(self):
+        formatter = DataFormatter(TableDataFormat(self.columns, no_value=self.no_value))
+        return list(formatter.format(self.data, keys=self.keys, group_by=self.group_by))
+
+
 class MultiReport(CustomProjectReport, CommtrackReportMixin, ProjectReportParametersMixin, DatespanMixin):
     title = ''
     report_template_path = "ewsghana/multi_report.html"
@@ -71,7 +109,7 @@ class MultiReport(CustomProjectReport, CommtrackReportMixin, ProjectReportParame
         context = {
             'reports': [self.get_report_context(dp) for dp in self.data_providers],
             'title': self.title,
-            'split': self.split
+            'split': self.split,
         }
         return context
 

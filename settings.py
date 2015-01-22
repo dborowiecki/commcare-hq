@@ -1205,7 +1205,9 @@ PILLOWTOPS = {
         'custom.tdh.models.TDHChildClassificationFluffPillow',
         'custom.tdh.models.TDHChildTreatmentFluffPillow',
         'custom.up_nrhm.models.UpNRHMLocationHierarchyFluffPillow',
-        'custom.up_nrhm.models.ASHAFacilitatorsFluffPillow'
+        'custom.up_nrhm.models.ASHAFacilitatorsFluffPillow',
+        'custom.ewsghana.models.EwsSmsUserFluffPillow',
+        'custom.ewsghana.models.EwsWebUserFluffPillow'
     ],
     'mvp': [
         'corehq.apps.indicators.pillows.FormIndicatorPillow',

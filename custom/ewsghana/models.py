@@ -1,9 +1,14 @@
 from couchdbkit.ext.django.schema import Document, BooleanProperty, StringProperty
 from casexml.apps.stock.models import DocDomainMapping
+from corehq.apps.users.models import CommCareUser, WebUser
+from corehq.fluff.calculators.case import CasePropertyFilter
 from corehq.toggles import STOCK_AND_RECEIPT_SMS_HANDLER
+from custom.utils.utils import flat_field
+from fluff.filters import CustomFilter
 from toggle.shortcuts import update_toggle_cache, namespaced_item
 from toggle.models import Toggle
 from corehq.toggles import NAMESPACE_DOMAIN
+import fluff
 
 
 class EWSGhanaConfig(Document):
@@ -57,3 +62,61 @@ class EWSGhanaConfig(Document):
 
         if self.enabled:
             STOCK_AND_RECEIPT_SMS_HANDLER.set(self.domain, True, NAMESPACE_DOMAIN)
+
+
+class Numerator(fluff.Calculator):
+    @fluff.null_emitter
+    def numerator(self, doc):
+        yield None
+
+
+class EWSWebUserCalculator(fluff.Calculator):
+    @fluff.null_emitter
+    def numerator(self, case):
+        for domain in case.get_domains():
+            if domain in EWSGhanaConfig.get_all_enabled_domains():
+                yield {
+                    'group_by': [domain, case.get_domain_membership(domain).location_id]
+                }
+
+
+class EwsSmsUserFluff(fluff.IndicatorDocument):
+    def user_data(property):
+        return flat_field(lambda user: user.user_data.get(property))
+
+    document_class = CommCareUser
+    document_filter = CustomFilter(lambda user: user.is_active)
+    domains = tuple(EWSGhanaConfig.get_all_enabled_domains())
+    group_by = ('domain', )
+
+    save_direct_to_sql = True
+
+    name = flat_field(lambda user: user.name)
+
+    numerator = Numerator()
+    phone_number = flat_field(lambda user: user.phone_numbers[0] if user.phone_numbers else None)
+    location_id = flat_field(lambda user: user.domain_membership.location_id if hasattr(
+        user, 'domain_membership') else None)
+    role = user_data('role')
+
+
+class EwsWebUserFluff(fluff.IndicatorDocument):
+    def user_data(property):
+        return flat_field(lambda user: user.user_data.get(property))
+
+    document_class = WebUser
+    document_filter = CustomFilter(lambda user: user.is_active)
+    domains = tuple(EWSGhanaConfig.get_all_enabled_domains())
+    save_direct_to_sql = True
+    group_by = (fluff.AttributeGetter('domain', lambda case: case.get_domains()),
+                fluff.AttributeGetter('location_id', lambda case: case.location_id))
+
+    name = flat_field(lambda user: user.name)
+
+    numerator = EWSWebUserCalculator()
+    email = flat_field(lambda user: user.email)
+    organization = user_data('organization')
+    sms_notifications = user_data('sms_notifications')
+
+EwsSmsUserFluffPillow = EwsSmsUserFluff.pillow()
+EwsWebUserFluffPillow = EwsWebUserFluff.pillow()
