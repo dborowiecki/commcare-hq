@@ -7,7 +7,7 @@ from custom.ewsghana.reports.specific_reports.stock_status_report import StockSt
 from custom.ewsghana.reports.specific_reports.reporting_rates import ReportingRatesReport
 
 
-TEST = True
+TEST = False
 LOCATION_TYPES = ["country", "region", "district", "facility"]
 
 CUSTOM_REPORTS = (

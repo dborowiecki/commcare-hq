@@ -4,11 +4,13 @@ import itertools
 from corehq.apps.commtrack.models import SupplyPointCase
 from corehq.apps.locations.models import SQLLocation, Location
 from custom.ewsghana.models import EWSGhanaConfig
+from custom.ewsghana.utils import get_reporting_types
 from custom.ilsgateway import TEST
 from custom.ilsgateway.models import ILSGatewayConfig
 from custom.logistics.commtrack import save_stock_data_checkpoint, synchronization
 from custom.logistics.models import StockDataCheckpoint
 from celery.task.base import task
+from dimagi.utils.couch.database import iter_docs
 
 
 @task
@@ -31,19 +33,18 @@ def stock_data_task(domain, endpoint, apis, test_facilities=None):
         checkpoint = StockDataCheckpoint()
         checkpoint.domain = domain
         checkpoint.start_date = start_date
-        api = 'product_stock'
+        api = 'stock_transaction'
         date = None
-        limit = 100
+        limit = 1000
         offset = 0
         location = None
 
-    if TEST:
-        facilities = test_facilities
-    else:
-        facilities = SQLLocation.objects.filter(
-            domain=domain,
-            location_type__iexact='FACILITY'
-        ).order_by('created_at').values_list('external_id', flat=True)
+    supply_points_ids = SQLLocation.objects.filter(
+        domain=domain,
+        location_type__in=get_reporting_types(domain)
+    ).order_by('created_at').values_list('supply_point_id', flat=True)
+    facilities = [doc['external_id'] for doc in iter_docs(SupplyPointCase.get_db(), supply_points_ids)]
+    print len(facilities)
 
     apis_from_checkpoint = itertools.dropwhile(lambda x: x[0] != api, apis)
     facilities_copy = list(facilities)
@@ -68,12 +69,12 @@ def stock_data_task(domain, endpoint, apis, test_facilities=None):
             endpoint=endpoint,
             facilities=facilities
         )
-        limit = 100
+        limit = 1000
         offset = 0
         # todo: see if we can avoid modifying the list of facilities in place
         if idx == 0:
             facilities = facilities_copy
-    save_stock_data_checkpoint(checkpoint, 'product_stock', 100, 0, start_date, None, False)
+    save_stock_data_checkpoint(checkpoint, apis[0][0], 100, 0, start_date, None, False)
     checkpoint.start_date = None
     checkpoint.save()
 
