@@ -12,7 +12,8 @@ from corehq.apps.users.models import UserRole
 from custom.api.utils import apply_updates
 from custom.ilsgateway.models import SupplyPointStatus, DeliveryGroupReport, HistoricalLocationGroup
 from custom.ilsgateway.utils import get_supply_point_by_external_id
-from custom.logistics.api import LogisticsEndpoint, APISynchronization
+from custom.logistics.api import LogisticsEndpoint, APISynchronization, LogisticsProductSync, ObjectSync, \
+    LogisticsWebUserSync, LogisticsSMSUserSync
 from corehq.apps.locations.models import Location as Loc
 
 LOCATION_TYPES = ["MOHSW", "REGION", "DISTRICT", "FACILITY"]
@@ -117,57 +118,15 @@ class ILSGatewayEndpoint(LogisticsEndpoint):
                       for deliverygroupreport in deliverygroupreports]
 
 
-class ILSGatewayAPI(APISynchronization):
+class ILSProductSync(LogisticsProductSync):
 
-    LOCATION_CUSTOM_FIELDS = [
-        {'name': 'groups'},
-    ]
-    SMS_USER_CUSTOM_FIELDS = [
-        {
-            'name': 'role',
-            'choices': [
-                "district supervisor",
-                "MSD",
-                "imci coordinator",
-                "Facility in-charge",
-                "MOHSW",
-                "RMO",
-                "District Pharmacist",
-                "DMO",
-            ]
-        },
-        {'name': 'backend'},
-    ]
-    PRODUCT_CUSTOM_FIELDS = []
+    @property
+    def name(self):
+        return "product"
 
-    def prepare_commtrack_config(self):
-        """
-        Bootstraps the domain-level metadata according to the static config.
-        - Sets the proper location types hierarchy on the domain object.
-        - Sets a keyword handler for reporting receipts
-        """
-        domain = Domain.get_by_name(self.domain)
-        domain.location_types = []
-        for i, value in enumerate(LOCATION_TYPES):
-            allowed_parents = [LOCATION_TYPES[i - 1]] if i > 0 else [""]
-            domain.location_types.append(
-                LocationType(name=value, allowed_parents=allowed_parents,
-                             administrative=(value.lower() != 'facility')))
-        domain.save()
-        config = CommtrackConfig.for_domain(self.domain)
-        actions = [action.keyword for action in config.actions]
-        if 'delivered' not in actions:
-            config.actions.append(
-                CommtrackActionConfig(
-                    action='receipts',
-                    keyword='delivered',
-                    caption='Delivered')
-            )
-            config.save()
-
-    def product_sync(self, ilsgateway_product):
+    def sync_object(self, ilsgateway_product, **kwargs):
         from custom.ilsgateway import PRODUCTS_CODES_PROGRAMS_MAPPING
-        product = super(ILSGatewayAPI, self).product_sync(ilsgateway_product)
+        product = super(ILSProductSync, self).sync_object(ilsgateway_product)
         programs = list(Program.by_domain(self.domain))
         for program, products in PRODUCTS_CODES_PROGRAMS_MAPPING.iteritems():
             if product.code in products:
@@ -183,28 +142,24 @@ class ILSGatewayAPI(APISynchronization):
                     product.save()
         return product
 
-    def web_user_sync(self, ilsgateway_webuser):
-        web_user = super(ILSGatewayAPI, self).web_user_sync(ilsgateway_webuser)
-        if not web_user:
-            return None
-        dm = web_user.get_domain_membership(self.domain)
-        dm.role_id = UserRole.get_read_only_role_by_domain(self.domain).get_id
-        web_user.save()
-        return web_user
 
-    def sms_user_sync(self, ilsgateway_smsuser, **kwargs):
-        sms_user = super(ILSGatewayAPI, self).sms_user_sync(ilsgateway_smsuser, **kwargs)
-        if not sms_user:
-            return None
-        try:
-            location = SQLLocation.objects.get(domain=self.domain, external_id=ilsgateway_smsuser.supply_point)
-            sms_user.set_location(location.location_id)
-        except SQLLocation.DoesNotExist:
-            pass
-        sms_user.save()
-        return sms_user
+class ILSLocationSync(ObjectSync):
 
-    def location_sync(self, ilsgateway_location, fetch_groups=False):
+    def __init__(self, endpoint, domain, location_type, checkpoint=None, filters=None):
+        super(ILSLocationSync, self).__init__(endpoint, domain, checkpoint, filters)
+        self.location_type = location_type
+
+    @property
+    def name(self):
+        return "location_%s" % self.location_type
+
+    def get_object(self, object_id):
+        return self.endpoint.get_location(object_id)
+
+    def get_objects(self, *args, **kwargs):
+        return self.endpoint.get_locations(**kwargs)
+
+    def sync_object(self, ilsgateway_location, **kwargs):
         try:
             sql_loc = SQLLocation.objects.get(
                 domain=self.domain,
@@ -226,7 +181,7 @@ class ILSGatewayAPI(APISynchronization):
                     loc_parent = sql_loc_parent.couch_location()
                 except SQLLocation.DoesNotExist:
                     parent = self.endpoint.get_location(ilsgateway_location.parent_id)
-                    loc_parent = self.location_sync(Location(parent))
+                    loc_parent = self.sync_object(Location(parent))
                 location = Loc(parent=loc_parent)
             else:
                 location = Loc()
@@ -291,3 +246,102 @@ class ILSGatewayAPI(APISynchronization):
                 HistoricalLocationGroup.objects.get_or_create(date=date, group=group,
                                                               location_id=location.sql_location)
         return location
+
+
+class ILSWebUserSync(LogisticsWebUserSync):
+
+    @property
+    def name(self):
+        return "webuser"
+
+    def sync_object(self, ilsgateway_webuser, **kwargs):
+        web_user = super(ILSWebUserSync, self).sync_object(ilsgateway_webuser)
+        if not web_user:
+            return None
+        dm = web_user.get_domain_membership(self.domain)
+        dm.role_id = UserRole.get_read_only_role_by_domain(self.domain).get_id
+        web_user.save()
+        return web_user
+
+
+class ILSSMSUserSync(LogisticsSMSUserSync):
+
+    @property
+    def name(self):
+        return "smsuser"
+
+    def sync_object(self, ilsgateway_smsuser, **kwargs):
+        sms_user = super(ILSSMSUserSync, self).sync_object(ilsgateway_smsuser, **kwargs)
+        if not sms_user:
+            return None
+        try:
+            location = SQLLocation.objects.get(domain=self.domain, external_id=ilsgateway_smsuser.supply_point)
+            sms_user.set_location(location.location_id)
+        except SQLLocation.DoesNotExist:
+            pass
+        sms_user.save()
+        return sms_user
+
+
+class ILSGatewayAPI(APISynchronization):
+
+    LOCATION_CUSTOM_FIELDS = [
+        {'name': 'groups'},
+    ]
+    SMS_USER_CUSTOM_FIELDS = [
+        {
+            'name': 'role',
+            'choices': [
+                "district supervisor",
+                "MSD",
+                "imci coordinator",
+                "Facility in-charge",
+                "MOHSW",
+                "RMO",
+                "District Pharmacist",
+                "DMO",
+            ]
+        },
+        {'name': 'backend'},
+    ]
+    PRODUCT_CUSTOM_FIELDS = []
+
+    @property
+    def apis(self):
+        return [
+            ILSProductSync(self.endpoint, self.domain, self.checkpoint),
+            ILSLocationSync(self.endpoint, self.domain, 'region', self.checkpoint,
+                            filters=dict(type='region')),
+            ILSLocationSync(self.endpoint, self.domain, 'district', self.checkpoint,
+                            filters=dict(type='district')),
+            ILSLocationSync(self.endpoint, self.domain, 'facility', self.checkpoint,
+                            filters=dict(type='facility')),
+            ILSWebUserSync(self.endpoint, self.checkpoint, self.domain),
+            ILSSMSUserSync(self.endpoint, self.checkpoint, self.domain)
+        ]
+
+    def prepare_commtrack_config(self):
+        """
+        Bootstraps the domain-level metadata according to the static config.
+        - Sets the proper location types hierarchy on the domain object.
+        - Sets a keyword handler for reporting receipts
+        """
+        domain = Domain.get_by_name(self.domain)
+        domain.location_types = []
+        for i, value in enumerate(LOCATION_TYPES):
+            allowed_parents = [LOCATION_TYPES[i - 1]] if i > 0 else [""]
+            domain.location_types.append(
+                LocationType(name=value, allowed_parents=allowed_parents,
+                             administrative=(value.lower() != 'facility')))
+        domain.save()
+        config = CommtrackConfig.for_domain(self.domain)
+        actions = [action.keyword for action in config.actions]
+        if 'delivered' not in actions:
+            config.actions.append(
+                CommtrackActionConfig(
+                    action='receipts',
+                    keyword='delivered',
+                    caption='Delivered')
+            )
+            config.save()
+

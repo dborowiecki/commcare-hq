@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 from corehq import Domain
 from corehq.apps.custom_data_fields import CustomDataFieldsDefinition
@@ -7,6 +8,7 @@ from corehq.apps.locations.models import SQLLocation
 from corehq.apps.products.models import Product
 from custom.ewsghana.models import EWSGhanaConfig
 from custom.ilsgateway.models import ILSGatewayConfig
+from custom.logistics.models import MigrationCheckpoint
 from dimagi.utils.dates import force_to_datetime
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -68,20 +70,35 @@ class LogisticsEndpoint(EndpointMixin):
         meta, products = self.get_objects(self.products_url, **kwargs)
         return meta, [(self.models_map['product'])(product) for product in products]
 
-    def get_webusers(self, **kwargs):
-        meta, users = self.get_objects(self.webusers_url, **kwargs)
+    def get_webusers(self, date=None, filters=None, **kwargs):
+        if date:
+            if filters:
+                filters['user__date_joined__gte'] = date
+            else:
+                filters = dict(user__date_joined__gte=date)
+        meta, users = self.get_objects(self.webusers_url, filters=filters, **kwargs)
         return meta, [(self.models_map['webuser'])(user) for user in users]
 
-    def get_smsusers(self, **kwargs):
-        meta, users = self.get_objects(self.smsusers_url, **kwargs)
+    def get_smsusers(self, date=None, filters=None, **kwargs):
+        if date:
+            if filters:
+                filters['user__date_joined__gte'] = date
+            else:
+                filters = dict(user__date_joined__gte=date)
+        meta, users = self.get_objects(self.smsusers_url, filters=filters, **kwargs)
         return meta, [(self.models_map['smsuser'])(user) for user in users]
 
     def get_location(self, id, params=None):
         response = requests.get(self.locations_url + str(id) + "/", params=params, auth=self._auth())
         return response.json()
 
-    def get_locations(self, **kwargs):
-        meta, locations = self.get_objects(self.locations_url, **kwargs)
+    def get_locations(self, date, filters=None, **kwargs):
+        if date:
+            if filters:
+                filters['user__date_joined__gte'] = date
+            else:
+                filters = dict(user__date_joined__gte=date)
+        meta, locations = self.get_objects(self.locations_url, filters=filters, **kwargs)
         return meta, [(self.models_map['location'])(location) for location in locations]
 
     def get_productstocks(self, **kwargs):
@@ -96,9 +113,15 @@ class LogisticsEndpoint(EndpointMixin):
 
 class ObjectSync(object):
 
-    def __init__(self, endpoint, domain):
+    @property
+    def name(self):
+        return ""
+
+    def __init__(self, endpoint, domain, checkpoint=None, filters=None):
         self.endpoint = endpoint
-        self.domain = self.domain
+        self.domain = domain
+        self.filters = filters or {}
+        self.checkpoint = checkpoint
 
     def get_object(self, object_id):
         raise NotImplemented("Not implemented yet")
@@ -106,8 +129,31 @@ class ObjectSync(object):
     def get_objects(self, *args, **kwargs):
         raise NotImplemented("Not implemented yet")
 
+    def get_objects_with_filters(self, *args, **kwargs):
+        return self.get_objects(
+            limit=self.checkpoint.limit,
+            offset=self.checkpoint.offset,
+            date=self.checkpoint.date,
+            filters=self.filters,
+            *args,
+            **kwargs
+        )
+
     def sync_object(self, object_from_api, **kwargs):
         raise NotImplemented("Not implemented yet")
+
+    def init_checkpoint(self):
+        if self.checkpoint:
+            self.checkpoint.offset = 0
+            self.checkpoint.api = self.name
+            self.checkpoint.save()
+
+    def update_checkpoint(self):
+        if self.checkpoint:
+            checkpoint = self.checkpoint
+            checkpoint.api = self.name
+            checkpoint.offset += checkpoint.limit
+            checkpoint.save()
 
 
 class LogisticsProductSync(ObjectSync):
@@ -264,11 +310,44 @@ class APISynchronization(SMSUserMixin):
     SMS_USER_CUSTOM_FIELDS = []
     PRODUCT_CUSTOM_FIELDS = []
 
-    APIS = []
-
     def __init__(self, domain, endpoint):
         self.domain = domain
         self.endpoint = endpoint
+        created, self.checkpoint = self.get_or_create_checkpoint(datetime.today())
+        if created:
+            self.prepare_commtrack_config()
+
+    def get_or_create_checkpoint(self, start_date):
+        try:
+            checkpoint = MigrationCheckpoint.objects.get(domain=self.domain)
+            if not checkpoint.start_date:
+                checkpoint.start_date = start_date
+                checkpoint.save()
+            return True, checkpoint
+        except MigrationCheckpoint.DoesNotExist:
+            checkpoint = MigrationCheckpoint()
+            checkpoint.domain = self.domain
+            checkpoint.start_date = start_date
+            checkpoint.offset = 0
+            checkpoint.limit = 100
+            return False, checkpoint
+
+    def reset_checkpoint(self):
+        assert self.checkpoint.id
+        self.checkpoint.date = self.checkpoint.start_date
+        self.checkpoint.start_date = None
+        self.checkpoint.offset = 0
+        self.checkpoint.api = self.apis[0].name
+        self.checkpoint.save()
+
+    def save_checkpoint(self, api, offset):
+        self.checkpoint.api = api
+        self.checkpoint.offset = offset
+        self.checkpoint.save()
+
+    @property
+    def apis(self):
+        return []
 
     def prepare_commtrack_config(self):
         """

@@ -207,6 +207,14 @@ class LocationMixin(object):
 
 class EWSLocationSync(ObjectSync, LocationMixin):
 
+    def __init__(self, endpoint, domain, checkpoint, location_type, filters=None):
+        super(EWSLocationSync, self).__init__(endpoint, domain, checkpoint, filters)
+        self.location_type = location_type
+
+    @property
+    def name(self):
+        return "location_%s" % self.location_type
+
     def get_object(self, object_id):
         return self.endpoint.get_location(object_id)
 
@@ -274,6 +282,10 @@ class EWSLocationSync(ObjectSync, LocationMixin):
 
 
 class EWSWebUserSync(LogisticsWebUserSync):
+
+    @property
+    def name(self):
+        return "webuser"
 
     def _convert_web_user_to_sms_user(self, ews_webuser):
         sms_user = SMSUser()
@@ -354,8 +366,12 @@ class EWSWebUserSync(LogisticsWebUserSync):
 
 class EWSSMSUserSync(LogisticsSMSUserSync):
 
+    @property
+    def name(self):
+        return "smsuser"
+
     def sync_object(self, ews_smsuser, **kwargs):
-        sms_user = super(LogisticsSMSUserSync, self).sync_object(ews_smsuser, **kwargs)
+        sms_user = super(EWSSMSUserSync, self).sync_object(ews_smsuser, **kwargs)
         if not sms_user:
             return None
         sms_user.user_data['to'] = ews_smsuser.to
@@ -411,6 +427,20 @@ class EWSApi(APISynchronization):
         }
     ]
     PRODUCT_CUSTOM_FIELDS = []
+
+    @property
+    def apis(self):
+        return [
+            EWSProductSync(self.endpoint, self.domain, self.checkpoint),
+            EWSLocationSync(self.endpoint, self.domain, 'region', self.checkpoint,
+                            filters=dict(is_active=True, type='region')),
+            EWSLocationSync(self.endpoint, self.domain, 'district', self.checkpoint,
+                            filters=dict(is_active=True, type='district')),
+            EWSLocationSync(self.endpoint, self.domain, 'facility', self.checkpoint,
+                            filters=dict(is_active=True, type='facility')),
+            EWSWebUserSync(self.endpoint, self.domain, self.checkpoint),
+            EWSSMSUserSync(self.endpoint, self.domain, self.checkpoint)
+        ]
 
     def prepare_commtrack_config(self):
         domain = Domain.get_by_name(self.domain)

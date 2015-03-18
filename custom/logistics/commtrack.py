@@ -5,9 +5,7 @@ import traceback
 from corehq.apps.commtrack.models import SupplyPointCase
 
 from corehq.apps.locations.models import Location
-from corehq.apps.users.models import WebUser
 from custom.logistics.models import MigrationCheckpoint
-from dimagi.utils.dates import force_to_datetime
 from requests.exceptions import ConnectionError
 from datetime import datetime
 from custom.ilsgateway.utils import get_next_meta_url
@@ -37,17 +35,17 @@ def retry(retry_max):
     return wrap
 
 
-def synchronization(name, get_objects_function, sync_function, checkpoint, date, limit, offset, **kwargs):
+def synchronization(sync_api, **kwargs):
     has_next = True
     next_url = ""
     while has_next:
-        meta, objects = get_objects_function(next_url_params=next_url, limit=limit, offset=offset, **kwargs)
-        if checkpoint:
-            save_checkpoint(checkpoint, name,
-                            meta.get('limit') or limit, meta.get('offset') or offset,
-                            date)
+        meta, objects = sync_api.get_objects_with_filters(
+            next_url_params=next_url,
+            **kwargs
+        )
         for obj in objects:
-            sync_function(obj)
+            sync_api.sync_object(obj)
+        sync_api.update_checkpoint()
         has_next, next_url = get_next_meta_url(has_next, meta, next_url)
 
 
@@ -92,85 +90,15 @@ def check_hashes(webuser, django_user, password):
 
 
 def bootstrap_domain(api_object, **kwargs):
-    domain = api_object.domain
-    endpoint = api_object.endpoint
-    start_date = datetime.today()
-
-    # get the last saved checkpoint from a prior migration and various config options
-    try:
-        checkpoint = MigrationCheckpoint.objects.get(domain=domain)
-        api = checkpoint.api
-        date = checkpoint.date
-        limit = 100
-        offset = checkpoint.offset
-        if not checkpoint.start_date:
-            checkpoint.start_date = start_date
-            checkpoint.save()
-        else:
-            start_date = checkpoint.start_date
-    except MigrationCheckpoint.DoesNotExist:
-        # bootstrap static domain data
-        api_object.prepare_commtrack_config()
-        checkpoint = MigrationCheckpoint()
-        checkpoint.domain = domain
-        checkpoint.start_date = start_date
-        api = 'product'
-        date = None
-        limit = 100
-        offset = 0
     api_object.set_default_backend()
     api_object.prepare_custom_fields()
-    synchronize_domain = partial(synchronization, checkpoint=checkpoint, date=date)
-    apis = [
-        ('product', partial(
-            synchronize_domain,
-            get_objects_function=endpoint.get_products,
-            sync_function=api_object.product_sync
-        )),
-        ('location_region', partial(
-            synchronize_domain,
-            get_objects_function=endpoint.get_locations,
-            sync_function=api_object.location_sync,
-            fetch_groups=True,
-            filters=dict(date_updated__gte=date, type='region', is_active=True)
-        )),
-        ('location_district', partial(
-            synchronize_domain,
-            get_objects_function=endpoint.get_locations,
-            sync_function=api_object.location_sync,
-            fetch_groups=True,
-            filters=dict(date_updated__gte=date, type='district', is_active=True)
-        )),
-        ('location_facility', partial(
-            synchronize_domain,
-            get_objects_function=endpoint.get_locations,
-            sync_function=api_object.location_sync,
-            fetch_groups=True,
-            filters=dict(date_updated__gte=date, type='facility', is_active=True)
-        )),
-        ('webuser', partial(
-            synchronize_domain,
-            get_objects_function=endpoint.get_webusers,
-            sync_function=api_object.web_user_sync,
-            filters=dict(user__date_joined__gte=date)
-        )),
-        ('smsuser', partial(
-            synchronize_domain,
-            get_objects_function=endpoint.get_smsusers,
-            sync_function=api_object.sms_user_sync,
-            filters=dict(date_updated__gte=date)
-        ))
-    ]
+    api_from_checkpoint = api_object.checkpoint.api
+    apis = api_object.apis
+    if api_from_checkpoint:
+        apis = itertools.dropwhile(lambda x: x.name != api_object.checkpoint.api, api_object.apis)
 
-    try:
-        apis_from_checkpoint = itertools.dropwhile(lambda x: x[0] != api, apis)
-        for (api_name, api_function) in apis_from_checkpoint:
-            api_function(name=api_name, limit=limit, offset=offset, **kwargs)
-            limit = 100
-            offset = 0
-
-        save_checkpoint(checkpoint, 'product', 100, 0, start_date, False)
-        checkpoint.start_date = None
-        checkpoint.save()
-    except ConnectionError as e:
-        logging.error(e)
+    for idx, api in enumerate(apis):
+        if idx != 0:
+            api.init_checkpoint()
+        synchronization(api, **kwargs)
+    api_object.reset_checkpoint()
