@@ -13,7 +13,8 @@ from custom.ewsghana.extensions import ews_product_extension, ews_webuser_extens
 from jsonobject.properties import StringProperty, BooleanProperty, ListProperty, IntegerProperty, ObjectProperty
 from custom.ilsgateway.api import ProductStock, StockTransaction
 from jsonobject import JsonObject
-from custom.logistics.api import LogisticsEndpoint, APISynchronization
+from custom.logistics.api import LogisticsEndpoint, APISynchronization, LogisticsProductSync, ObjectSync, \
+    LogisticsWebUserSync, LogisticsSMSUserSync
 from corehq.apps.locations.models import Location as Loc
 from django.core.exceptions import ValidationError
 
@@ -118,23 +119,14 @@ class GhanaEndpoint(LogisticsEndpoint):
         return meta, [SupplyPoint(supply_point) for supply_point in supply_points]
 
 
-class EWSApi(APISynchronization):
-    LOCATION_CUSTOM_FIELDS = [
-        {'name': 'created_at'},
-        {'name': 'supervised_by'}
-    ]
-    SMS_USER_CUSTOM_FIELDS = [
-        {'name': 'to'},
-        {'name': 'backend'},
-        {
-            'name': 'role',
-            'choices': [
-                'In Charge', 'Nurse', 'Pharmacist', 'Laboratory Staff', 'Other', 'Facility Manager'
-            ]
-        }
-    ]
-    PRODUCT_CUSTOM_FIELDS = []
+class EWSProductSync(LogisticsProductSync):
 
+    def sync_object(self, ews_product, **kwargs):
+        product = super(EWSProductSync, self).sync_object(ews_product, **kwargs)
+        ews_product_extension(product, ews_product)
+        return product
+
+class LocationMixin(object):
     def _create_location_type_if_not_exists(self, supply_point, location):
         domain = Domain.get_by_name(self.domain)
         if not filter(lambda l: l.name == supply_point.type, domain.location_types):
@@ -144,6 +136,19 @@ class EWSApi(APISynchronization):
                 administrative=False
             ))
             domain.save()
+
+    def _create_supply_point_from_location(self, supply_point, location):
+        if not SupplyPointCase.get_by_location(location):
+            if supply_point.supervised_by:
+                location.metadata['supervised_by'] = supply_point.supervised_by
+                location.save()
+                sql_loc = location.sql_location
+                sql_loc.products = SQLProduct.objects.filter(domain=self.domain, code__in=supply_point.products)
+                sql_loc.save()
+            SupplyPointCase.get_or_create_by_location(Loc(_id=location._id,
+                                                          name=supply_point.name,
+                                                          external_id=str(supply_point.id),
+                                                          domain=self.domain))
 
     def _create_location_from_supply_point(self, supply_point, location):
         try:
@@ -164,18 +169,248 @@ class EWSApi(APISynchronization):
             sql_loc.save()
             return new_location
 
-    def _create_supply_point_from_location(self, supply_point, location):
-        if not SupplyPointCase.get_by_location(location):
-            if supply_point.supervised_by:
-                location.metadata['supervised_by'] = supply_point.supervised_by
+    def _set_location_properties(self, location, ews_location):
+        location.domain = self.domain
+        location.name = ews_location.name
+        location.metadata = {}
+        if ews_location.latitude:
+            location.latitude = float(ews_location.latitude)
+        if ews_location.longitude:
+            location.longitude = float(ews_location.longitude)
+        location.location_type = ews_location.type
+        location.site_code = ews_location.code
+        location.external_id = str(ews_location.id)
+
+    def _set_up_supply_point(self, location, ews_location):
+        supply_point_with_stock_data = filter(lambda x: x.last_reported, ews_location.supply_points)
+        if location.location_type in ['country', 'region', 'district']:
+            for supply_point in supply_point_with_stock_data:
+                created_location = self._create_location_from_supply_point(supply_point, location)
+                fake_location = Loc(
+                    _id=created_location._id,
+                    name=supply_point.name,
+                    external_id=str(supply_point.id),
+                    domain=self.domain
+                )
+                SupplyPointCase.get_or_create_by_location(fake_location)
+                created_location.save()
+            fake_location = Loc(_id=location._id,
+                                name=location.name,
+                                domain=self.domain)
+            SupplyPointCase.get_or_create_by_location(fake_location)
+        elif ews_location.supply_points:
+            supply_point = ews_location.supply_points[0]
+            location.location_type = supply_point.type
+            self._create_supply_point_from_location(supply_point, location)
+            location.save()
+
+
+class EWSLocationSync(ObjectSync, LocationMixin):
+
+    def get_object(self, object_id):
+        return self.endpoint.get_location(object_id)
+
+    def get_objects(self, *args, **kwargs):
+        return self.endpoint.get_locations(**kwargs)
+
+    def sync_object(self, ews_location, **kwargs):
+        try:
+            sql_loc = SQLLocation.objects.get(
+                domain=self.domain,
+                external_id=int(ews_location.id)
+            )
+            location = Loc.get(sql_loc.location_id)
+        except SQLLocation.DoesNotExist:
+            location = None
+
+        if not location:
+            if ews_location.parent_id:
+                try:
+                    loc_parent = SQLLocation.objects.get(
+                        external_id=ews_location.parent_id,
+                        domain=self.domain
+                    )
+                    loc_parent_id = loc_parent.location_id
+                except SQLLocation.DoesNotExist:
+                    parent = self.get_object(ews_location.parent_id)
+                    loc_parent = self.sync_object(Location(parent))
+                    loc_parent_id = loc_parent._id
+
+                location = Loc(parent=loc_parent_id)
+            else:
+                location = Loc()
+                location.lineage = []
+
+            self._set_location_properties(location, ews_location)
+            location.save()
+            self._set_up_supply_point(location, ews_location)
+        else:
+            location_dict = {
+                'name': ews_location.name,
+                'latitude': float(ews_location.latitude) if ews_location.latitude else None,
+                'longitude': float(ews_location.longitude) if ews_location.longitude else None,
+                'site_code': ews_location.code.lower(),
+                'external_id': str(ews_location.id),
+            }
+
+            if apply_updates(location, location_dict):
                 location.save()
-                sql_loc = location.sql_location
-                sql_loc.products = SQLProduct.objects.filter(domain=self.domain, code__in=supply_point.products)
-                sql_loc.save()
-            SupplyPointCase.get_or_create_by_location(Loc(_id=location._id,
-                                                          name=supply_point.name,
-                                                          external_id=str(supply_point.id),
-                                                          domain=self.domain))
+        for supply_point in ews_location.supply_points:
+            sp = SupplyPointCase.view('hqcase/by_domain_external_id',
+                                      key=[self.domain, str(supply_point.id)],
+                                      reduce=False,
+                                      include_docs=True,
+                                      limit=1).first()
+            if sp:
+                sql_location = sp.location.sql_location
+                sql_location.stocks_all_products = False
+                if not sql_location.products:
+                    sql_location.products = SQLProduct.objects.filter(
+                        domain=self.domain,
+                        code__in=supply_point.products
+                    )
+                    sql_location.save()
+        return location
+
+
+class EWSWebUserSync(LogisticsWebUserSync):
+
+    def _convert_web_user_to_sms_user(self, ews_webuser):
+        sms_user = SMSUser()
+        sms_user.username = ews_webuser.username
+        sms_user.email = ews_webuser.email
+
+        if ews_webuser.contact and ews_webuser.contact.supply_point:
+            sms_user.supply_point = ews_webuser.contact.supply_point
+        elif ews_webuser.location:
+            sms_user.supply_point = SupplyPoint(
+                location_id=ews_webuser.location
+            )
+
+        sms_user.is_active = str(ews_webuser.is_active)
+        sms_user.name = ews_webuser.first_name + " " + ews_webuser.last_name
+        if ews_webuser.contact:
+            sms_user.backend = ews_webuser.contact.backend
+            sms_user.to = ews_webuser.contact.to
+            sms_user.phone_numbers = ews_webuser.contact.phone_numbers
+        sms_user_sync = EWSSMSUserSync(self.endpoint, self.domain)
+        return sms_user_sync.sync_object(
+            sms_user,
+            username_part=ews_webuser.username.lower() if ews_webuser.username else None,
+            password=ews_webuser.password,
+            first_name=ews_webuser.first_name,
+            last_name=ews_webuser.last_name
+        )
+
+    def sync_object(self, ews_webuser, **kwargs):
+        if not ews_webuser.is_superuser and ews_webuser.groups:
+            group = ews_webuser.groups[0]
+            if group.name == 'facility_manager':
+                return self._convert_web_user_to_sms_user(ews_webuser)
+
+        username = ews_webuser.email.lower()
+        if not username:
+            try:
+                validate_email(ews_webuser.username)
+                username = ews_webuser.username
+            except ValidationError:
+                return None
+        user = WebUser.get_by_username(username)
+        user_dict = {
+            'first_name': ews_webuser.first_name,
+            'last_name': ews_webuser.last_name,
+            'is_active': ews_webuser.is_active,
+            'last_login': force_to_datetime(ews_webuser.last_login),
+            'date_joined': force_to_datetime(ews_webuser.date_joined),
+            'password_hashed': True,
+        }
+        sp = SupplyPointCase.view('hqcase/by_domain_external_id',
+                                  key=[self.domain, str(ews_webuser.location)],
+                                  reduce=False,
+                                  include_docs=True,
+                                  limit=1).first()
+        location_id = sp.location_id if sp else None
+
+        if user is None:
+            try:
+                user = WebUser.create(domain=None, username=username,
+                                      password=ews_webuser.password, email=ews_webuser.email,
+                                      **user_dict)
+                user.add_domain_membership(self.domain, location_id=location_id)
+            except Exception as e:
+                logging.error(e)
+        else:
+            if self.domain not in user.get_domains():
+                user.add_domain_membership(self.domain, location_id=location_id)
+        ews_webuser_extension(user, ews_webuser)
+        dm = user.get_domain_membership(self.domain)
+        if ews_webuser.is_superuser:
+            dm.is_admin = True
+        else:
+            dm.role_id = UserRole.get_read_only_role_by_domain(self.domain).get_id
+        user.save()
+        return user
+
+
+class EWSSMSUserSync(LogisticsSMSUserSync):
+
+    def sync_object(self, ews_smsuser, **kwargs):
+        sms_user = super(LogisticsSMSUserSync, self).sync_object(ews_smsuser, **kwargs)
+        if not sms_user:
+            return None
+        sms_user.user_data['to'] = ews_smsuser.to
+
+        if ews_smsuser.supply_point:
+            if ews_smsuser.supply_point.id:
+                sp = SupplyPointCase.view('hqcase/by_domain_external_id',
+                                          key=[self.domain, str(ews_smsuser.supply_point.id)],
+                                          reduce=False,
+                                          include_docs=True,
+                                          limit=1).first()
+            else:
+                sp = None
+
+            if sp:
+                couch_location_id = sp.location_id
+            elif ews_smsuser.supply_point.location_id:
+                try:
+                    location = SQLLocation.objects.get(domain=self.domain,
+                                                       external_id=ews_smsuser.supply_point.location_id)
+                    couch_location_id = location.location_id
+                except SQLLocation.DoesNotExist:
+                    couch_location_id = None
+            else:
+                couch_location_id = None
+            if couch_location_id:
+                sms_user.location_id = couch_location_id
+                sms_user.save()
+
+        if ews_smsuser.role == 'facility_manager':
+            role = UserRole.by_domain_and_name(self.domain, 'Facility manager')
+            if role:
+                dm = sms_user.get_domain_membership(self.domain)
+                dm.role_id = role[0].get_id
+
+        sms_user.save()
+        return sms_user
+
+
+class EWSApi(APISynchronization):
+    LOCATION_CUSTOM_FIELDS = [
+        {'name': 'created_at'},
+        {'name': 'supervised_by'}
+    ]
+    SMS_USER_CUSTOM_FIELDS = [
+        {'name': 'to'},
+        {'name': 'backend'},
+        {
+            'name': 'role',
+            'choices': [
+                'In Charge', 'Nurse', 'Pharmacist', 'Laboratory Staff', 'Other', 'Facility Manager'
+            ]
+        }
+    ]
+    PRODUCT_CUSTOM_FIELDS = []
 
     def prepare_commtrack_config(self):
         domain = Domain.get_by_name(self.domain)
@@ -224,216 +459,3 @@ class EWSApi(APISynchronization):
         )
         role.save()
 
-    def product_sync(self, ews_product):
-        product = super(EWSApi, self).product_sync(ews_product)
-        ews_product_extension(product, ews_product)
-        return product
-
-    def _set_location_properties(self, location, ews_location):
-        location.domain = self.domain
-        location.name = ews_location.name
-        location.metadata = {}
-        if ews_location.latitude:
-            location.latitude = float(ews_location.latitude)
-        if ews_location.longitude:
-            location.longitude = float(ews_location.longitude)
-        location.location_type = ews_location.type
-        location.site_code = ews_location.code
-        location.external_id = str(ews_location.id)
-
-    def _set_up_supply_point(self, location, ews_location):
-        supply_point_with_stock_data = filter(lambda x: x.last_reported, ews_location.supply_points)
-        if location.location_type in ['country', 'region', 'district']:
-            for supply_point in supply_point_with_stock_data:
-                created_location = self._create_location_from_supply_point(supply_point, location)
-                fake_location = Loc(
-                    _id=created_location._id,
-                    name=supply_point.name,
-                    external_id=str(supply_point.id),
-                    domain=self.domain
-                )
-                SupplyPointCase.get_or_create_by_location(fake_location)
-                created_location.save()
-            fake_location = Loc(_id=location._id,
-                                name=location.name,
-                                domain=self.domain)
-            SupplyPointCase.get_or_create_by_location(fake_location)
-        elif ews_location.supply_points:
-            supply_point = ews_location.supply_points[0]
-            location.location_type = supply_point.type
-            self._create_supply_point_from_location(supply_point, location)
-            location.save()
-
-    def location_sync(self, ews_location):
-        try:
-            sql_loc = SQLLocation.objects.get(
-                domain=self.domain,
-                external_id=int(ews_location.id)
-            )
-            location = Loc.get(sql_loc.location_id)
-        except SQLLocation.DoesNotExist:
-            location = None
-
-        if not location:
-            if ews_location.parent_id:
-                try:
-                    loc_parent = SQLLocation.objects.get(
-                        external_id=ews_location.parent_id,
-                        domain=self.domain
-                    )
-                    loc_parent_id = loc_parent.location_id
-                except SQLLocation.DoesNotExist:
-                    parent = self.endpoint.get_location(ews_location.parent_id)
-                    loc_parent = self.location_sync(Location(parent))
-                    loc_parent_id = loc_parent._id
-
-                location = Loc(parent=loc_parent_id)
-            else:
-                location = Loc()
-                location.lineage = []
-
-            self._set_location_properties(location, ews_location)
-            location.save()
-            self._set_up_supply_point(location, ews_location)
-        else:
-            location_dict = {
-                'name': ews_location.name,
-                'latitude': float(ews_location.latitude) if ews_location.latitude else None,
-                'longitude': float(ews_location.longitude) if ews_location.longitude else None,
-                'site_code': ews_location.code.lower(),
-                'external_id': str(ews_location.id),
-            }
-
-            if apply_updates(location, location_dict):
-                location.save()
-        for supply_point in ews_location.supply_points:
-            sp = SupplyPointCase.view('hqcase/by_domain_external_id',
-                                      key=[self.domain, str(supply_point.id)],
-                                      reduce=False,
-                                      include_docs=True,
-                                      limit=1).first()
-            if sp:
-                sql_location = sp.location.sql_location
-                sql_location.stocks_all_products = False
-                if not sql_location.products:
-                    sql_location.products = SQLProduct.objects.filter(
-                        domain=self.domain,
-                        code__in=supply_point.products
-                    )
-                    sql_location.save()
-        return location
-
-    def convert_web_user_to_sms_user(self, ews_webuser):
-        sms_user = SMSUser()
-        sms_user.username = ews_webuser.username
-        sms_user.email = ews_webuser.email
-
-        if ews_webuser.contact and ews_webuser.contact.supply_point:
-            sms_user.supply_point = ews_webuser.contact.supply_point
-        elif ews_webuser.location:
-            sms_user.supply_point = SupplyPoint(
-                location_id=ews_webuser.location
-            )
-
-        sms_user.is_active = str(ews_webuser.is_active)
-        sms_user.name = ews_webuser.first_name + " " + ews_webuser.last_name
-        if ews_webuser.contact:
-            sms_user.backend = ews_webuser.contact.backend
-            sms_user.to = ews_webuser.contact.to
-            sms_user.phone_numbers = ews_webuser.contact.phone_numbers
-        return self.sms_user_sync(
-            sms_user,
-            username_part=ews_webuser.username.lower() if ews_webuser.username else None,
-            password=ews_webuser.password,
-            first_name=ews_webuser.first_name,
-            last_name=ews_webuser.last_name
-        )
-
-    def web_user_sync(self, ews_webuser):
-        if not ews_webuser.is_superuser and ews_webuser.groups:
-            group = ews_webuser.groups[0]
-            if group.name == 'facility_manager':
-                return self.convert_web_user_to_sms_user(ews_webuser)
-
-        username = ews_webuser.email.lower()
-        if not username:
-            try:
-                validate_email(ews_webuser.username)
-                username = ews_webuser.username
-            except ValidationError:
-                return None
-        user = WebUser.get_by_username(username)
-        user_dict = {
-            'first_name': ews_webuser.first_name,
-            'last_name': ews_webuser.last_name,
-            'is_active': ews_webuser.is_active,
-            'last_login': force_to_datetime(ews_webuser.last_login),
-            'date_joined': force_to_datetime(ews_webuser.date_joined),
-            'password_hashed': True,
-        }
-        sp = SupplyPointCase.view('hqcase/by_domain_external_id',
-                                  key=[self.domain, str(ews_webuser.location)],
-                                  reduce=False,
-                                  include_docs=True,
-                                  limit=1).first()
-        location_id = sp.location_id if sp else None
-
-        if user is None:
-            try:
-                user = WebUser.create(domain=None, username=username,
-                                      password=ews_webuser.password, email=ews_webuser.email,
-                                      **user_dict)
-                user.add_domain_membership(self.domain, location_id=location_id)
-            except Exception as e:
-                logging.error(e)
-        else:
-            if self.domain not in user.get_domains():
-                user.add_domain_membership(self.domain, location_id=location_id)
-        ews_webuser_extension(user, ews_webuser)
-        dm = user.get_domain_membership(self.domain)
-        if ews_webuser.is_superuser:
-            dm.is_admin = True
-        else:
-            dm.role_id = UserRole.get_read_only_role_by_domain(self.domain).get_id
-        user.save()
-        return user
-
-    def sms_user_sync(self, ews_smsuser, **kwargs):
-        sms_user = super(EWSApi, self).sms_user_sync(ews_smsuser, **kwargs)
-        if not sms_user:
-            return None
-        sms_user.user_data['to'] = ews_smsuser.to
-
-        if ews_smsuser.supply_point:
-            if ews_smsuser.supply_point.id:
-                sp = SupplyPointCase.view('hqcase/by_domain_external_id',
-                                          key=[self.domain, str(ews_smsuser.supply_point.id)],
-                                          reduce=False,
-                                          include_docs=True,
-                                          limit=1).first()
-            else:
-                sp = None
-
-            if sp:
-                couch_location_id = sp.location_id
-            elif ews_smsuser.supply_point.location_id:
-                try:
-                    location = SQLLocation.objects.get(domain=self.domain,
-                                                       external_id=ews_smsuser.supply_point.location_id)
-                    couch_location_id = location.location_id
-                except SQLLocation.DoesNotExist:
-                    couch_location_id = None
-            else:
-                couch_location_id = None
-            if couch_location_id:
-                sms_user.location_id = couch_location_id
-                sms_user.save()
-
-        if ews_smsuser.role == 'facility_manager':
-            role = UserRole.by_domain_and_name(self.domain, 'Facility manager')
-            if role:
-                dm = sms_user.get_domain_membership(self.domain)
-                dm.role_id = role[0].get_id
-
-        sms_user.save()
-        return sms_user

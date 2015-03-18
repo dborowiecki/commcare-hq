@@ -94,76 +94,35 @@ class LogisticsEndpoint(EndpointMixin):
                       for stock_transaction in stock_transactions]
 
 
-class APISynchronization(object):
+class ObjectSync(object):
 
-    LOCATION_CUSTOM_FIELDS = []
-    SMS_USER_CUSTOM_FIELDS = []
-    PRODUCT_CUSTOM_FIELDS = []
-
-    def __init__(self, domain, endpoint):
-        self.domain = domain
+    def __init__(self, endpoint, domain):
         self.endpoint = endpoint
+        self.domain = self.domain
 
-    def prepare_commtrack_config(self):
-        """
-        Bootstraps the domain-level metadata according to the static config.
-        """
+    def get_object(self, object_id):
         raise NotImplemented("Not implemented yet")
 
-    def prepare_custom_fields(self):
-        """
-        Sets the proper custom user data/location/product fields on the domain.
-        """
-        self.save_custom_fields('LocationFields', self.LOCATION_CUSTOM_FIELDS)
-        self.save_custom_fields('UserFields', self.SMS_USER_CUSTOM_FIELDS)
-        self.save_custom_fields('ProductFields', self.PRODUCT_CUSTOM_FIELDS)
-
-    def save_custom_fields(self, definition_name, custom_fields):
-        if custom_fields:
-            fields_definitions = CustomDataFieldsDefinition.get_or_create(self.domain, definition_name)
-            need_save = False
-            for custom_field in custom_fields:
-                name = custom_field.get('name')
-                choices = custom_field.get('choices') or []
-                existing_fields = filter(lambda field: field.slug == name, fields_definitions.fields)
-                if not existing_fields:
-                    need_save = True
-                    fields_definitions.fields.append(
-                        CustomDataField(
-                            slug=name,
-                            label=name,
-                            is_required=False,
-                        )
-                    )
-                else:
-                    existing_field = existing_fields[0]
-                    if set(existing_field.choices) != set(choices):
-                        existing_field.choices = choices
-                        need_save = True
-
-            if need_save:
-                fields_definitions.save()
-
-    @memoized
-    def _get_logistics_domains(self):
-        return ILSGatewayConfig.get_all_enabled_domains() + EWSGhanaConfig.get_all_enabled_domains()
-
-    def set_default_backend(self):
-        domain_object = Domain.get_by_name(self.domain)
-        domain_object.default_sms_backend_id = MobileBackend.load_by_name(None, 'MOBILE_BACKEND_TEST').get_id
-        domain_object.save()
-
-    def location_sync(self, ilsgateway_location):
+    def get_objects(self, *args, **kwargs):
         raise NotImplemented("Not implemented yet")
 
-    def product_sync(self, ilsgateway_product):
-        product = Product.get_by_code(self.domain, ilsgateway_product.sms_code)
+    def sync_object(self, object_from_api, **kwargs):
+        raise NotImplemented("Not implemented yet")
+
+
+class LogisticsProductSync(ObjectSync):
+
+    def get_objects(self, **kwargs):
+        return self.endpoint.get_products(**kwargs)
+
+    def sync_object(self, logistics_product, **kwargs):
+        product = Product.get_by_code(self.domain, logistics_product.sms_code)
         product_dict = {
             'domain': self.domain,
-            'name': ilsgateway_product.name,
-            'code': ilsgateway_product.sms_code,
-            'unit': str(ilsgateway_product.units),
-            'description': ilsgateway_product.description,
+            'name': logistics_product.name,
+            'code': logistics_product.sms_code,
+            'unit': str(logistics_product.units),
+            'description': logistics_product.description,
         }
         if product is None:
             product = Product(**product_dict)
@@ -173,25 +132,31 @@ class APISynchronization(object):
                 product.save()
         return product
 
-    def web_user_sync(self, ilsgateway_webuser):
-        username = ilsgateway_webuser.email.lower()
+
+class LogisticsWebUserSync(ObjectSync):
+
+    def get_objects(self, *args, **kwargs):
+        return self.endpoint.get_webusers(**kwargs)
+
+    def sync_object(self, logistics_webuser, **kwargs):
+        username = logistics_webuser.email.lower()
         if not username:
             try:
-                validate_email(ilsgateway_webuser.username)
-                username = ilsgateway_webuser.username
+                validate_email(logistics_webuser.username)
+                username = logistics_webuser.username
             except ValidationError:
                 return None
         user = WebUser.get_by_username(username)
         user_dict = {
-            'first_name': ilsgateway_webuser.first_name,
-            'last_name': ilsgateway_webuser.last_name,
-            'is_active': ilsgateway_webuser.is_active,
-            'last_login': force_to_datetime(ilsgateway_webuser.last_login),
-            'date_joined': force_to_datetime(ilsgateway_webuser.date_joined),
+            'first_name': logistics_webuser.first_name,
+            'last_name': logistics_webuser.last_name,
+            'is_active': logistics_webuser.is_active,
+            'last_login': force_to_datetime(logistics_webuser.last_login),
+            'date_joined': force_to_datetime(logistics_webuser.date_joined),
             'password_hashed': True,
         }
         try:
-            sql_location = SQLLocation.objects.get(domain=self.domain, external_id=ilsgateway_webuser.location)
+            sql_location = SQLLocation.objects.get(domain=self.domain, external_id=logistics_webuser.location)
             location_id = sql_location.location_id
         except SQLLocation.DoesNotExist:
             location_id = None
@@ -199,7 +164,7 @@ class APISynchronization(object):
         if user is None:
             try:
                 user = WebUser.create(domain=None, username=username,
-                                      password=ilsgateway_webuser.password, email=ilsgateway_webuser.email,
+                                      password=logistics_webuser.password, email=logistics_webuser.email,
                                       **user_dict)
                 user.add_domain_membership(self.domain, location_id=location_id)
                 user.save()
@@ -211,9 +176,30 @@ class APISynchronization(object):
                 user.save()
         return user
 
-    def sms_user_sync(self, ilsgateway_smsuser, username_part=None, password=None,
-                      first_name='', last_name=''):
+
+class SMSUserMixin(object):
+    @memoized
+    def _get_logistics_domains(self):
+        return ILSGatewayConfig.get_all_enabled_domains() + EWSGhanaConfig.get_all_enabled_domains()
+
+    def _reassign_number(self, user, phone_number):
+        v = VerifiedNumber.by_phone(phone_number, include_pending=True)
+        if v.domain in self._get_logistics_domains():
+            v.delete()
+            user.save_verified_number(self.domain, phone_number, True)
+
+
+class LogisticsSMSUserSync(ObjectSync, SMSUserMixin):
+
+    def get_objects(self, *args, **kwargs):
+        return self.endpoint.get_smsusers(**kwargs)
+
+    def sync_object(self, ilsgateway_smsuser, **kwargs):
         domain_part = "%s.commcarehq.org" % self.domain
+        username_part = kwargs.get('username_part')
+        password = kwargs.get('password')
+        first_name = kwargs.get('first_name', '')
+        last_name = kwargs.get('last_name', '')
         if not username_part:
             username_part = "%s%d" % (ilsgateway_smsuser.name.strip().replace(' ', '.').lower(),
                                       ilsgateway_smsuser.id)
@@ -271,11 +257,63 @@ class APISynchronization(object):
                 user.save()
         return user
 
-    def _reassign_number(self, user, phone_number):
-        v = VerifiedNumber.by_phone(phone_number, include_pending=True)
-        if v.domain in self._get_logistics_domains():
-            v.delete()
-            user.save_verified_number(self.domain, phone_number, True)
+
+class APISynchronization(SMSUserMixin):
+
+    LOCATION_CUSTOM_FIELDS = []
+    SMS_USER_CUSTOM_FIELDS = []
+    PRODUCT_CUSTOM_FIELDS = []
+
+    APIS = []
+
+    def __init__(self, domain, endpoint):
+        self.domain = domain
+        self.endpoint = endpoint
+
+    def prepare_commtrack_config(self):
+        """
+        Bootstraps the domain-level metadata according to the static config.
+        """
+        raise NotImplemented("Not implemented yet")
+
+    def prepare_custom_fields(self):
+        """
+        Sets the proper custom user data/location/product fields on the domain.
+        """
+        self.save_custom_fields('LocationFields', self.LOCATION_CUSTOM_FIELDS)
+        self.save_custom_fields('UserFields', self.SMS_USER_CUSTOM_FIELDS)
+        self.save_custom_fields('ProductFields', self.PRODUCT_CUSTOM_FIELDS)
+
+    def save_custom_fields(self, definition_name, custom_fields):
+        if custom_fields:
+            fields_definitions = CustomDataFieldsDefinition.get_or_create(self.domain, definition_name)
+            need_save = False
+            for custom_field in custom_fields:
+                name = custom_field.get('name')
+                choices = custom_field.get('choices') or []
+                existing_fields = filter(lambda field: field.slug == name, fields_definitions.fields)
+                if not existing_fields:
+                    need_save = True
+                    fields_definitions.fields.append(
+                        CustomDataField(
+                            slug=name,
+                            label=name,
+                            is_required=False,
+                        )
+                    )
+                else:
+                    existing_field = existing_fields[0]
+                    if set(existing_field.choices) != set(choices):
+                        existing_field.choices = choices
+                        need_save = True
+
+            if need_save:
+                fields_definitions.save()
+
+    def set_default_backend(self):
+        domain_object = Domain.get_by_name(self.domain)
+        domain_object.default_sms_backend_id = MobileBackend.load_by_name(None, 'MOBILE_BACKEND_TEST').get_id
+        domain_object.save()
 
     def add_language_to_user(self, logistics_sms_user):
         domain_part = "%s.commcarehq.org" % self.domain
