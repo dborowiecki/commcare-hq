@@ -613,7 +613,7 @@ def update_historical_data(domain):
         except SupplyPointWarehouseRecord.DoesNotExist:
             # we didn't have a record so go through and historically update
             # anything we maybe haven't touched
-            opened_on = sp.linked_supply_point().opened_on
+            opened_on = sp.sql_location.created_at
             for year, month in months_between(start_date, opened_on):
                 window_date = datetime(year, month, 1)
                 for cls in [OrganizationSummary, ProductAvailabilityData, GroupSummary]:

@@ -5,3 +5,4 @@ from .test_locations_sync import *
 from .test_apis import *
 from .test_migration_task import *
 from custom.ilsgateway.tanzania.test import *
+from .test_report_runner import *
