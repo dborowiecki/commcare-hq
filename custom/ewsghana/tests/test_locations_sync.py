@@ -48,7 +48,7 @@ class LocationSyncTest(TestCase):
         with open(os.path.join(self.datapath, 'sample_products.json')) as f:
             for p in json.loads(f.read()):
                 self.api_object.product_sync(Product(p))
-        self.assertEqual(8, SQLProduct.objects.filter(domain=TEST_DOMAIN).count())
+        self.assertEqual(49, SQLProduct.objects.filter(domain=TEST_DOMAIN).count())
         ewsghana_location = self.api_object.location_sync(location)
         self.assertEqual(ewsghana_location.name, location.supply_points[0].name)
         self.assertEqual(ewsghana_location.site_code, location.supply_points[0].code)

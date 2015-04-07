@@ -1,45 +1,461 @@
-[
-  {
+[{
     "description": "Abacavir 300mg",
     "is_active": true,
     "name": "Abacavir 300mg",
-    "sms_code": "abc",
-    "units": "Tablet",
     "program": {
         "code": "hiv",
         "name": "HIV/AIDS"
-    }
-  },
-  {
+    },
+    "sms_code": "abc",
+    "units": "Tablet"
+}, {
     "description": "AL 20mg/120mg 1X6",
     "is_active": true,
     "name": "AL 20mg/120mg 1X6",
-    "sms_code": "ali",
-    "units": "tablets",
     "program": {
-        "code": "hiv",
-        "name": "HIV/AIDS"
-    }
-  },
-  {
+        "code": "malaria",
+        "name": "Malaria"
+    },
+    "sms_code": "ali",
+    "units": "tablets"
+}, {
     "description": "AL (20mg/120mg) 4x6",
     "is_active": true,
     "name": "AL 20mg/120mg 4x6",
+    "program": {
+        "code": "malaria",
+        "name": "Malaria"
+    },
     "sms_code": "alk",
     "units": "tablets"
-  },
-  {
+}, {
     "description": "A-L Dispersible (1X6)",
     "is_active": false,
     "name": "A-L Dispersible",
+    "program": {
+        "code": "malaria",
+        "name": "Malaria"
+    },
     "sms_code": "ad",
     "units": "Tablets"
-  },
-  {
+}, {
     "description": "Malaria",
     "is_active": false,
     "name": "A-L Suspension",
+    "program": {
+        "code": "malaria",
+        "name": "Malaria"
+    },
     "sms_code": "al",
     "units": "Tablets"
-  }
-]
+}, {
+    "description": "AS-AQ (3X3). Co-blister with 6 tablets.",
+    "is_active": false,
+    "name": "AS-AQ",
+    "program": {
+        "code": "malaria",
+        "name": "Malaria"
+    },
+    "sms_code": "aa",
+    "units": "Tablets"
+}, {
+    "description": "fixed-dose combination, 3 tablets",
+    "is_active": true,
+    "name": "AS/AQ 25/67.5mg FDC",
+    "program": {
+        "code": "malaria",
+        "name": "Malaria"
+    },
+    "sms_code": "aai",
+    "units": "tablets"
+}, {
+    "description": "fixed-dose combination",
+    "is_active": true,
+    "name": "AS/AQ 50/135mg FDC",
+    "program": {
+        "code": "malaria",
+        "name": "Malaria"
+    },
+    "sms_code": "aak",
+    "units": "tablets"
+}, {
+    "description": "[Zidovudine 300mg+Lamivudine 150mg]+Efavirenz 600mg COPACK",
+    "is_active": true,
+    "name": "[AZT+3TC]+EFV copack",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "zle",
+    "units": "Tablet"
+}, {
+    "description": "Zidovudine 300mg+Lamivudine150mg+Nevirapine 200mg Tab",
+    "is_active": true,
+    "name": "AZT+3TC+NVP",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "zln",
+    "units": "Tablet"
+}, {
+    "description": "Category I+III Kit",
+    "is_active": true,
+    "name": "Category I+III Kit",
+    "program": {
+        "code": "tb",
+        "name": "Tuberculosis"
+    },
+    "sms_code": "atb",
+    "units": "Kit"
+}, {
+    "description": "Combivir Tabs (AZT/3TC)",
+    "is_active": true,
+    "name": "Combivir Tabs",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "cb",
+    "units": "Tablets"
+}, {
+    "description": "Copper-T",
+    "is_active": true,
+    "name": "Copper-T",
+    "program": {
+        "code": "fp",
+        "name": "Family Planning"
+    },
+    "sms_code": "cu",
+    "units": "Pcs"
+}, {
+    "description": "Syrup",
+    "is_active": true,
+    "name": "Cotrimoxazole",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "co",
+    "units": "Bottle"
+}, {
+    "description": "Depo Provera",
+    "is_active": true,
+    "name": "Depo Provera",
+    "program": {
+        "code": "fp",
+        "name": "Family Planning"
+    },
+    "sms_code": "dp",
+    "units": "Vials"
+}, {
+    "description": "Effavirenz 50mg",
+    "is_active": true,
+    "name": "Effavirenz 50mg",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "efa",
+    "units": "Tablet"
+}, {
+    "description": "600 mg",
+    "is_active": true,
+    "name": "Effavirenz 600mg",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "ef",
+    "units": "Tablet"
+}, {
+    "description": "200 mg",
+    "is_active": true,
+    "name": "Emtricitabine",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "em",
+    "units": "Capsule"
+}, {
+    "description": "First Response Test Kits",
+    "is_active": true,
+    "name": "First Response",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "fr",
+    "units": "Kits"
+}, {
+    "description": "Jadelle",
+    "is_active": true,
+    "name": "Jadelle",
+    "program": {
+        "code": "fp",
+        "name": "Family Planning"
+    },
+    "sms_code": "jd",
+    "units": "Pcs"
+}, {
+    "description": "Lamivudine Suspension",
+    "is_active": true,
+    "name": "Lamivudine Suspension",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "lm",
+    "units": "Bottles"
+}, {
+    "description": "150 mg",
+    "is_active": true,
+    "name": "Lamivudine Tabs",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "lt",
+    "units": "Tablet"
+}, {
+    "description": "Lofem",
+    "is_active": false,
+    "name": "Lofem",
+    "program": {
+        "code": "fp",
+        "name": "Family Planning"
+    },
+    "sms_code": "lf",
+    "units": "Cycle"
+}, {
+    "description": "Lopinavir 200mg+Ritonavir 50mg Tab (Lpv/r)",
+    "is_active": true,
+    "name": "Lpv/r",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "lr",
+    "units": "Tablet"
+}, {
+    "description": "RDTs",
+    "is_active": true,
+    "name": "Malaria RDTs",
+    "program": {
+        "code": "malaria",
+        "name": "Malaria"
+    },
+    "sms_code": "rd",
+    "units": "Kits"
+}, {
+    "description": "Male Condom",
+    "is_active": true,
+    "name": "Male Condom",
+    "program": {
+        "code": "fp",
+        "name": "Family Planning"
+    },
+    "sms_code": "mc",
+    "units": "Pcs"
+}, {
+    "description": "Micro-G",
+    "is_active": true,
+    "name": "Micro-G",
+    "program": {
+        "code": "fp",
+        "name": "Family Planning"
+    },
+    "sms_code": "mg",
+    "units": "Cycle"
+}, {
+    "description": "Microlut",
+    "is_active": true,
+    "name": "Microlut",
+    "program": {
+        "code": "fp",
+        "name": "Family Planning"
+    },
+    "sms_code": "ml",
+    "units": "Cycle"
+}, {
+    "description": "Nevirapine Suspension",
+    "is_active": true,
+    "name": "Nevirapine Suspension",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "ns",
+    "units": "Bottles"
+}, {
+    "description": "Nevirapine Tabs",
+    "is_active": true,
+    "name": "Nevirapine Tabs",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "nv",
+    "units": "Tablets"
+}, {
+    "description": "Norigynon",
+    "is_active": true,
+    "name": "Norigynon",
+    "program": {
+        "code": "fp",
+        "name": "Family Planning"
+    },
+    "sms_code": "ng",
+    "units": "Amps"
+}, {
+    "description": "Oral Quinine",
+    "is_active": true,
+    "name": "Oral Quinine",
+    "program": {
+        "code": "malaria",
+        "name": "Malaria"
+    },
+    "sms_code": "qu",
+    "units": "Tablets"
+}, {
+    "description": "Oraquick",
+    "is_active": true,
+    "name": "Oraquick",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "oq",
+    "units": "Kits"
+}, {
+    "description": "Overette",
+    "is_active": false,
+    "name": "Overette",
+    "program": {
+        "code": "fp",
+        "name": "Family Planning"
+    },
+    "sms_code": "ov",
+    "units": "Cycle"
+}, {
+    "description": "Paediatric TB Kit",
+    "is_active": true,
+    "name": "Paediatric TB Kit",
+    "program": {
+        "code": "tb",
+        "name": "Tuberculosis"
+    },
+    "sms_code": "ptb",
+    "units": "Kit"
+}, {
+    "description": "Rapid Syphilis Test Kit",
+    "is_active": true,
+    "name": "Rapid Syphilis Test Kit",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "rs",
+    "units": "Piece"
+}, {
+    "description": "Ready-to-Use Therapeutic Food (RUTF) – Plumpy Nuts",
+    "is_active": true,
+    "name": "RUTF",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "ru",
+    "units": "Sachet"
+}, {
+    "description": "SP",
+    "is_active": true,
+    "name": "SP",
+    "program": {
+        "code": "malaria",
+        "name": "Malaria"
+    },
+    "sms_code": "sp",
+    "units": "Tablets"
+}, {
+    "description": "Tenofovir 300Mg+Lamivudine 300Mg",
+    "is_active": true,
+    "name": "TDF+3TC",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "tl",
+    "units": "Tablet"
+}, {
+    "description": "Tenofovir 300mg+Lamivudine 300mg+Efavirenz 600mg",
+    "is_active": true,
+    "name": "TDF+3TC+EFV",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "tle",
+    "units": "Tablet"
+}, {
+    "description": "[Tenofovir 300mg+Lamivudine 300mg]+Nevirapine 200mg (COPACK)",
+    "is_active": true,
+    "name": "[TDF+3TC]+NVP copack",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "tln",
+    "units": "Tablet"
+}, {
+    "description": "Tenofovir 300Mg+Emticitabine 200Mg",
+    "is_active": true,
+    "name": "TDF+FTC",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "tem",
+    "units": "Tablet"
+}, {
+    "description": "Tenofovir 300mg+Emtricitabine 200mg+Efavirenz 600mg",
+    "is_active": true,
+    "name": "TDF+FTC+EFV",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "tef",
+    "units": "Tablet"
+}, {
+    "description": "300 mg",
+    "is_active": true,
+    "name": "Tenofovir",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "te",
+    "units": "Tablet"
+}, {
+    "description": "Zidovudine Suspension",
+    "is_active": true,
+    "name": "Zidovudine Suspension",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "zs",
+    "units": "Bottles"
+}, {
+    "description": "300 mg",
+    "is_active": true,
+    "name": "Zidovudine Tabs",
+    "program": {
+        "code": "hiv",
+        "name": "HIV/AIDS"
+    },
+    "sms_code": "zt",
+    "units": "Tablet"
+}]
