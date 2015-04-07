@@ -15,6 +15,30 @@ class ConsumptionCalcTest(SimpleTestCase):
                 _tx('stockonhand', 35, 0),
             ], 60), 0.)
         # 15 / 5 = 3
+        """
+            In EWS this period should be dropped and None should be returned
+            because clause (start period soh) + (receipts in period) > (end period soh) doesn't pass.
+            (25 + 10 > 40)
+            I think that similar situation isn't possible in HQ
+            because commtrack is inferring additional receipt so in this case
+            before soh 40 receipt 20 should be added. With inferred transactions clause above will be always correct.
+            _tx('stockonhand', 25, 5),
+            _tx('receipts', 10, 0),
+            _tx('consumption', 15, 0),
+            _tx('receipts', 20, 0),  # inferred
+            _tx('stockonhand', 40, 0)
+            Then obviously 25 + 30 > 40
+        """
+        self.assertAlmostEqual(
+            consumption(
+                [
+                    _tx('stockonhand', 25, 5),
+                    _tx('receipts', 10, 0),
+                    _tx('consumption', 15, 0),
+                    _tx('stockonhand', 40, 0)
+                ], 60
+            ), 3.
+        )
         self.assertAlmostEqual(consumption([
                 _tx('stockonhand', 25, 5),
                 _tx('consumption', 15, 0),
