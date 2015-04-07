@@ -2,6 +2,7 @@ import collections
 import functools
 import json
 import math
+from decimal import Decimal
 from dimagi.utils import parsing as dateparse
 from datetime import datetime, timedelta
 from casexml.apps.stock import const
@@ -176,6 +177,8 @@ def compute_daily_consumption_from_transactions(transactions, window_start, conf
     class ConsumptionPeriod(object):
         def __init__(self, tx):
             self.start = from_ts(tx.received_on)
+            self.start_soh = tx.value
+            self.end_soh = None
             self.end = None
             self.consumption = 0
 
@@ -184,6 +187,8 @@ def compute_daily_consumption_from_transactions(transactions, window_start, conf
 
         def close_out(self, tx):
             self.end = from_ts(tx.received_on)
+            self.end_soh = tx.value
+
 
         @property
         def length(self):
@@ -199,6 +204,7 @@ def compute_daily_consumption_from_transactions(transactions, window_start, conf
 
     def split_periods(transactions):
         period = None
+        receipt = Decimal(0)
         for tx in transactions:
             base_action_type = tx.action
             is_stockout = (
@@ -211,17 +217,23 @@ def compute_daily_consumption_from_transactions(transactions, window_start, conf
             if is_checkpoint:
                 if period:
                     period.close_out(tx)
-                    yield period
+                    if period.start_soh + receipt >= period.end_soh:
+                        yield period
+                receipt = Decimal(0)
                 period = ConsumptionPeriod(tx)
             elif is_stockout:
                 if period:
                     # throw out current period
                     period = None
+                    receipt = Decimal(0)
             elif base_action_type == 'consumption':
                 # TODO in the future it's possible we'll want to break this out by action_type, in order to track
                 # different kinds of consumption: normal vs losses, etc.
                 if period:
                     period.add(tx)
+            elif base_action_type == 'receipts':
+                if period and period.start:
+                    receipt += Decimal(tx.value)
 
     periods = list(split_periods(transactions))
 
