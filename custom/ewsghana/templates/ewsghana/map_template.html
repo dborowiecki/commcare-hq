@@ -5,10 +5,16 @@
 
 {% block js %} {{ block.super }}
     <script src="{% static 'ewsghana/report_links.js' %}"></script>
+    <script src='https://api.tiles.mapbox.com/mapbox.js/plugins/leaflet-image/v0.0.4/leaflet-image.js'></script>
 {% endblock %}
 {% block js-inline %}
     {{ block.super }}
     <script>
         add_report_links({{ context.slugs|JSON }});
     </script>
+{% endblock %}
+
+{% block reportcontent %}
+    <button id="export-jpg">Save this map to .jpg</button>
+    {{ block.super }}
 {% endblock %}

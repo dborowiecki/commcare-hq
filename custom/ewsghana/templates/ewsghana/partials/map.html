@@ -1,0 +1,46 @@
+{% extends 'reports/partials/base_maps.html' %}
+{% load static %}
+{% load hq_shared_tags %}
+
+{% block js-script %}
+    <script src="{% static 'reports/javascripts/maps.js' %}"></script>
+    <script src="{% static 'reports/javascripts/maps_utils.js' %}"></script>
+    <script>
+
+    CONTEXT = {{ context|JSON }};
+    ICON_PATH = '{% static 'reports/css/leaflet/images' %}';
+    MIN_HEIGHT = 300; //px
+
+    function load(context, iconPath) {
+        L.Icon.Default.imagePath = iconPath;
+        var map = mapsInit(context);
+
+        var resize = function() {
+            setMapHeight(map);
+        };
+        $(window).resize(resize);
+        var $reportFiltersAccordion = $('#reportFiltersAccordion');
+        $reportFiltersAccordion.on('shown', resize);
+        $reportFiltersAccordion.on('hidden', resize);
+        resize();
+        return map;
+    }
+
+    $(document).ready(function() {
+        if (CONTEXT !== '') {
+            var map = load(CONTEXT, ICON_PATH);
+            $('#export-jpg').click(function() {
+                leafletImage(map, function(err, canvas) {
+                    console.log('test');
+                    var data = canvas.toDataURL("image/jpeg", 1);
+                    var a = document.createElement('a');
+                    a.href = data;
+                    a.download = 'map.jpg';
+                    a.click();
+                });
+            });
+        }
+    });
+
+    </script>
+{% endblock js-script %}
