@@ -1,7 +1,10 @@
 {% extends 'reports/partials/base_maps.html' %}
 {% load static %}
 {% load hq_shared_tags %}
-
+{% block js-libs %}
+    <script>L_PREFER_CANVAS = true;</script>
+    {{ block.super }}
+{% endblock %}
 {% block js-script %}
     <script src="{% static 'reports/javascripts/maps.js' %}"></script>
     <script src="{% static 'reports/javascripts/maps_utils.js' %}"></script>
@@ -30,13 +33,20 @@
         if (CONTEXT !== '') {
             var map = load(CONTEXT, ICON_PATH);
             $('#export-jpg').click(function() {
+                var $button = $(this);
+                var text = $button.text();
+                $button.text('Loading...');
+                $button.prop('disabled', true);
                 leafletImage(map, function(err, canvas) {
-                    console.log('test');
                     var data = canvas.toDataURL("image/jpeg", 1);
                     var a = document.createElement('a');
                     a.href = data;
                     a.download = 'map.jpg';
+                    $('body').append(a);
                     a.click();
+                    a.remove();
+                    $button.text(text);
+                    $button.prop('disabled', false);
                 });
             });
         }
