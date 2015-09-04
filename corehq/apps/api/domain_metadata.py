@@ -1,5 +1,6 @@
 from datetime import datetime
 import logging
+from tastypie.paginator import Paginator
 from corehq import Domain
 from corehq.apps.accounting.models import Subscription
 from corehq.apps.api.resources import HqBaseResource
@@ -7,11 +8,13 @@ from corehq.apps.api.resources.v0_1 import (
     CustomResourceMeta,
     AdminAuthentication,
 )
+from corehq.apps.domain.models import DocDomainMapping
 from corehq.apps.es.domains import DomainES
 
 from tastypie import fields
 from tastypie.exceptions import NotFound
 import operator
+from dimagi.utils.couch.database import iter_docs
 
 
 def _get_domain(bundle):
@@ -28,6 +31,15 @@ def get_truth(inp, relate, cut):
     else:
         cut_datetime = datetime.strptime(cut, '%Y-%m-%d')
         return ops[relate](inp, cut_datetime)
+
+
+class CustomPaginator(Paginator):
+
+    def get_slice(self, limit, offset):
+        return self.objects
+
+    def get_count(self):
+        return DocDomainMapping.objects.count()
 
 
 class DomainMetadataResource(HqBaseResource):
@@ -79,13 +91,21 @@ class DomainMetadataResource(HqBaseResource):
             filters = {}
             if hasattr(bundle.request, 'GET'):
                 filters = bundle.request.GET
-            domains = list(Domain.get_all())
-            if filters:
-                for key, value in filters.iteritems():
-                    args = key.split('__')
-                    if args and args[0] == 'last_modified':
-                        domains = [domain for domain in domains if get_truth(domain.last_modified, args[1], value)]
-            return domains
+
+            limit = int(filters.get('limit', 10))
+            offset = int(filters.get('offset', 0))
+            params = {}
+            if 'last_modified__lte' in filters:
+                params['last_modified__lte'] = filters['last_modified__lte']
+
+            if 'last_modified__gte' in filters:
+                params['last_modified__gte'] = filters['last_modified__gte']
+
+            mappings = DocDomainMapping.objects.filter(**params).order_by('last_modified')
+            return map(
+                Domain.wrap,
+                iter_docs(Domain.get_db(), mappings.values_list('document_id', flat=True)[offset:offset + limit])
+            )
 
     class Meta(CustomResourceMeta):
         authentication = AdminAuthentication()
@@ -93,3 +113,4 @@ class DomainMetadataResource(HqBaseResource):
         detail_allowed_methods = ['get']
         object_class = Domain
         resource_name = 'project_space_metadata'
+        paginator_class = CustomPaginator

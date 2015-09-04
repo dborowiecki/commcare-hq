@@ -6,8 +6,10 @@ import uuid
 from couchdbkit.exceptions import ResourceConflict
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
+from django.dispatch import receiver
 from django.template.loader import render_to_string
 from corehq.apps.domain.exceptions import DomainDeleteException
+from corehq.apps.domain.signals import commcare_domain_post_save
 from corehq.apps.tzmigration import set_migration_complete
 from corehq.util.soft_assert import soft_assert
 from corehq.util.timezones.conversions import \
@@ -1366,3 +1368,23 @@ class TransferDomainRequest(models.Model):
             'deactivate_url': self.deactivate_url(),
             'activate_url': self.activate_url(),
         }
+
+
+class DocDomainMapping(models.Model):
+    document_id = models.CharField(max_length=100, db_index=True, unique=True)
+    name = models.CharField(max_length=256, db_index=True, unique=True)
+    last_modified = models.DateTimeField()
+
+
+@receiver(commcare_domain_post_save)
+def domain_post_save_receiver(domain, **kwargs):
+    try:
+        mapping = DocDomainMapping.objects.get(document_id=domain.get_id)
+        mapping.last_modified = domain.last_modified
+        mapping.save()
+    except DocDomainMapping.DoesNotExist:
+        DocDomainMapping.objects.create(
+            document_id=domain.get_id,
+            name=domain.name,
+            last_modified=domain.last_modified
+        )
