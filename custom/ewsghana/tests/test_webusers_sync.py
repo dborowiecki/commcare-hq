@@ -75,7 +75,7 @@ class WebUsersSyncTest(TestCase):
         location = SQLLocation.objects.get(external_id=1, domain=TEST_DOMAIN)
         self.assertEqual(ewsghana_webuser.get_domain_membership(TEST_DOMAIN).location_id, location.location_id)
 
-        extensions = EWSExtension.objects.all()
+        extensions = EWSExtension.objects.filter(domain=TEST_DOMAIN)
         self.assertEqual(extensions.count(), 1)
 
         self.assertEqual(extensions[0].user_id, ewsghana_webuser.get_id)
