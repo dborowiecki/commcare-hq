@@ -11,6 +11,7 @@ from corehq.apps.app_manager.models import Application
 from corehq.apps.accounting.utils import domain_has_privilege
 from corehq.apps.domain.views import BaseDomainView
 from corehq.apps.es.queries import search_string_query
+from corehq.apps.sms.phonenumbers_helper import strip_plus
 from corehq.apps.style.decorators import (
     use_bootstrap3,
     use_knockout_js,
@@ -229,7 +230,7 @@ class BaseEditUserView(BaseUserSettingsView):
             user_id=self.editable_user_id,
             initial={
                 'facility': location_id,
-                'phone_number': phone_number,
+                'phone_number': strip_plus(phone_number),
                 'sms_notifications': sms_notifications
             }
         )
