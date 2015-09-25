@@ -8,6 +8,7 @@ from corehq.apps.locations.tests import make_loc
 from corehq.apps.products.models import SQLProduct, Product
 from corehq.apps.sms.mixin import VerifiedNumber
 from corehq.apps.sms.models import SMS
+from corehq.apps.users.models import EWSExtension
 from custom.ewsghana.models import FacilityInCharge
 from custom.ewsghana.reminders import STOCK_ON_HAND_REMINDER, SECOND_STOCK_ON_HAND_REMINDER, \
     SECOND_INCOMPLETE_SOH_REMINDER, STOCKOUT_REPORT
@@ -17,7 +18,7 @@ from custom.ewsghana.reminders.second_soh_reminder import SecondSOHReminder
 from custom.ewsghana.reminders.stockout_reminder import StockoutReminder
 from custom.ewsghana.reminders.third_soh_reminder import ThirdSOHReminder
 from custom.ewsghana.reminders.visit_website_reminder import VisitWebsiteReminder
-from custom.ewsghana.utils import prepare_domain, bootstrap_user, bootstrap_web_user
+from custom.ewsghana.utils import prepare_domain, bootstrap_user, bootstrap_web_user, set_sms_notifications
 from corehq.apps.sms.backend import test
 
 
@@ -89,7 +90,7 @@ class TestReminders(TestCase):
             username='testwebuser',
             password='dummy',
             email='test@example.com',
-            user_data={'sms_notifications': True},
+            sms_notifications=True,
             location=cls.loc2,
             phone_number='5555'
         )
@@ -99,7 +100,7 @@ class TestReminders(TestCase):
             username='testwebuser2',
             password='dummy',
             email='test2@example.com',
-            user_data={'sms_notifications': True},
+            sms_notifications=True,
             location=cls.region,
             phone_number='6666'
         )
@@ -270,8 +271,7 @@ class TestReminders(TestCase):
             }
         )
 
-        self.web_user.user_data['sms_notifications'] = False
-        self.web_user.save()
+        set_sms_notifications(self.web_user, False)
 
         now = datetime.utcnow()
         StockoutReminder(TEST_DOMAIN).send()
@@ -298,8 +298,7 @@ class TestReminders(TestCase):
         smses = SMS.objects.filter(date__gte=now)
         self.assertEqual(smses.count(), 1)
 
-        self.web_user2.user_data['sms_notifications'] = False
-        self.web_user2.save()
+        set_sms_notifications(self.web_user2, False)
 
         now = datetime.utcnow()
         VisitWebsiteReminder(TEST_DOMAIN).send()
