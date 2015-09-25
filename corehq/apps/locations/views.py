@@ -831,7 +831,6 @@ def non_administrative_locations_for_select2(request, domain):
         else:
             return json_response(loc_to_payload(loc))
 
-
     locs = []
     user = request.couch_user
 

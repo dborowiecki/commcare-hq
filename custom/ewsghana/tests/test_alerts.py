@@ -10,7 +10,7 @@ from custom.ewsghana.alerts import ONGOING_NON_REPORTING, ONGOING_STOCKOUT_AT_SD
 from custom.ewsghana.alerts.ongoing_non_reporting import OnGoingNonReporting
 from custom.ewsghana.alerts.ongoing_stockouts import OnGoingStockouts, OnGoingStockoutsRMS
 from custom.ewsghana.tests.test_reminders import create_stock_report
-from custom.ewsghana.utils import prepare_domain, bootstrap_user, make_loc, assign_products_to_location, \
+from custom.ewsghana.utils import prepare_domain, make_loc, assign_products_to_location, \
     bootstrap_web_user
 from corehq.apps.sms.backend import test
 

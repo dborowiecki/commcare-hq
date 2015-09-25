@@ -2492,10 +2492,6 @@ class EWSExtension(models.Model):
     def domain_object(self):
         return Domain.get_by_name(self.domain)
 
-    @property
-    def web_user(self):
-        return WebUser.get(self.user_id)
-
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
         old_phone_number = None
         if self.pk:

@@ -5,13 +5,13 @@ from corehq.apps.locations.models import Location
 from corehq.apps.products.models import Product
 from corehq.apps.programs.models import Program
 from corehq.apps.sms.mixin import VerifiedNumber
-from corehq.apps.users.models import CommCareUser, WebUser
+from corehq.apps.users.models import WebUser
 from custom.ewsghana.alerts.alert import Notification
 from custom.ewsghana.alerts.ongoing_non_reporting import OnGoingNonReporting
 from custom.ewsghana.alerts.ongoing_stockouts import OnGoingStockouts
 from custom.ewsghana.alerts.urgent_alerts import UrgentStockoutAlert, UrgentNonReporting
 from custom.ewsghana.tests.test_reminders import create_stock_report
-from custom.ewsghana.utils import prepare_domain, make_loc, bootstrap_user, assign_products_to_location, \
+from custom.ewsghana.utils import prepare_domain, make_loc, assign_products_to_location, \
     bootstrap_web_user, set_sms_notifications
 from corehq.apps.sms.backend import test
 from corehq.apps.commtrack.tests.util import TEST_BACKEND

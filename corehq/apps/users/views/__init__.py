@@ -255,8 +255,8 @@ class BaseEditUserView(BaseUserSettingsView):
             if self.request.project.commtrack_enabled:
                 self.editable_user.get_domain_membership(self.domain).program_id = self.request.POST['program_id']
             self.editable_user.save()
-        elif EWS_WEB_USER_EXTENSION.enabled(self.domain) and \
-                        self.request.POST['form_type'] == "ews" and self.ews_form.is_valid():
+        elif EWS_WEB_USER_EXTENSION.enabled(self.domain) and self.request.POST['form_type'] == "ews"\
+                and self.ews_form.is_valid():
             self.ews_form.save(self.editable_user, self.domain)
         elif self.request.POST['form_type'] == "update-user":
             if all([self.update_user(), self.custom_user_is_valid()]):

@@ -8,7 +8,6 @@ from corehq.apps.locations.tests import make_loc
 from corehq.apps.products.models import SQLProduct, Product
 from corehq.apps.sms.mixin import VerifiedNumber
 from corehq.apps.sms.models import SMS
-from corehq.apps.users.models import EWSExtension
 from custom.ewsghana.models import FacilityInCharge
 from custom.ewsghana.reminders import STOCK_ON_HAND_REMINDER, SECOND_STOCK_ON_HAND_REMINDER, \
     SECOND_INCOMPLETE_SOH_REMINDER, STOCKOUT_REPORT
