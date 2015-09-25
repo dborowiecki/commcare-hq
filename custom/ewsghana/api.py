@@ -18,6 +18,7 @@ from dimagi.ext.jsonobject import JsonObject, StringProperty, BooleanProperty, L
 from custom.logistics.api import LogisticsEndpoint, APISynchronization, MigrationException, ApiSyncObject
 from corehq.apps.locations.models import Location as Loc
 from django.core.exceptions import ValidationError
+from corehq.apps.programs.models import Program as CouchProgram
 
 
 class Group(JsonObject):
@@ -70,6 +71,7 @@ class EWSUser(JsonObject):
     supply_point = IntegerProperty()
     sms_notifications = BooleanProperty()
     organization = StringProperty()
+    program = StringProperty()
     groups = ListProperty(item_type=Group)
     contact = ObjectProperty(item_type=SMSUser, default=None)
 
@@ -551,6 +553,12 @@ class EWSApi(APISynchronization):
         extension.sms_notifications = sms_notifications
         extension.save()
 
+    def _set_program(self, web_user, program_code):
+        program = CouchProgram.get_by_code(self.domain, program_code)
+        if program:
+            dm = web_user.get_domain_membership(self.domain)
+            dm.program_id = program.get_id
+
     def web_user_sync(self, ews_webuser):
         username = ews_webuser.email.lower()
         if not username:
@@ -593,6 +601,9 @@ class EWSApi(APISynchronization):
 
         if dm.location_id != location_id:
             dm.location_id = location_id
+
+        if ews_webuser.program:
+            self._set_program(user, ews_webuser.program)
 
         facility_id = None
         if ews_webuser.supply_point:
