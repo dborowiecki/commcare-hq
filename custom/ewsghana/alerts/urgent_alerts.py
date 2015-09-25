@@ -73,7 +73,7 @@ class UrgentStockoutAlert(UrgentAlert):
             for user in self.get_users(sql_location):
                 message = self.get_message(sql_location.name, user, products)
                 if message:
-                    yield Notification(user, message)
+                    yield Notification(self.domain, user, message)
 
     def send(self):
         for notification in self.get_notifications():
@@ -100,7 +100,7 @@ class UrgentNonReporting(UrgentAlert):
             if not message:
                 continue
             for user in self.get_users(sql_location):
-                yield Notification(user, message)
+                yield Notification(self.domain, user, message)
 
     def send(self):
         for notification in self.get_notifications():

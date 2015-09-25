@@ -3,16 +3,18 @@ from django.db.models.query_utils import Q
 from corehq.apps.accounting import generator
 from corehq.apps.accounting.models import BillingAccount, DefaultProductPlan, SoftwarePlanEdition, Subscription
 from corehq.apps.commtrack.models import StockState, SupplyPointCase
+from corehq.apps.domain.shortcuts import create_domain
 from corehq.apps.locations.models import SQLLocation, LocationType, Location
 from datetime import timedelta, datetime
 from dateutil import rrule
 from dateutil.rrule import MO
 from django.utils import html
+from corehq.toggles import EWS_WEB_USER_EXTENSION
 from corehq.util.quickcache import quickcache
 from corehq.apps.products.models import SQLProduct
 from corehq.apps.sms.api import add_msg_tags
 from corehq.apps.sms.models import SMSLog, OUTGOING
-from corehq.apps.users.models import CommCareUser, WebUser
+from corehq.apps.users.models import CommCareUser, WebUser, EWSExtension
 from custom.ewsghana.models import EWSGhanaConfig
 
 TEST_DOMAIN = 'ewsghana-receipts-test'
@@ -123,8 +125,10 @@ def assign_products_to_location(location, products):
 
 
 def prepare_domain(domain_name):
-    from corehq.apps.commtrack.tests import bootstrap_domain
-    domain = bootstrap_domain(domain_name)
+    domain = create_domain(domain_name)
+    domain.convert_to_commtrack()
+    domain.default_sms_backend_id = TEST_BACKEND
+    domain.save()
 
     def _make_loc_type(name, administrative=False, parent_type=None):
         return LocationType.objects.get_or_create(
@@ -169,6 +173,7 @@ def prepare_domain(domain_name):
     subscription.save()
     ews_config = EWSGhanaConfig(enabled=True, domain=domain.name)
     ews_config.save()
+    EWS_WEB_USER_EXTENSION.set(domain.name, True)
     return domain
 
 TEST_LOCATION_TYPE = 'outlet'
@@ -203,17 +208,27 @@ def bootstrap_user(username=TEST_USER, domain=TEST_DOMAIN,
     return CommCareUser.wrap(user.to_json())
 
 
-def bootstrap_web_user(domain, username, password, email, location, user_data, phone_number):
+def bootstrap_web_user(domain, username, password, email, location=None, user_data=None, phone_number=None,
+                       sms_notifications=False, program_id=None):
     web_user = WebUser.create(
         domain=domain,
         username=username,
         password=password,
         email=email
     )
-    web_user.user_data = user_data
-    web_user.set_location(domain, location)
-    web_user.save_verified_number(domain, phone_number, verified=True, backend_id=TEST_BACKEND)
+    dm = web_user.get_domain_membership(domain)
+    dm.program_id = program_id
+    web_user.user_data = user_data or {}
+    if location:
+        web_user.set_location(domain, location)
     web_user.save()
+    EWSExtension.objects.get_or_create(
+        domain=domain,
+        user_id=web_user.get_id,
+        phone_number=phone_number,
+        location_id=None if location else location.get_id,
+        sms_notifications=sms_notifications
+    )
     return web_user
 
 REORDER_LEVEL = Decimal("1.5")
@@ -413,3 +428,16 @@ def get_supply_points(domain, location_id):
                 location_type__administrative=False,
             ).order_by('name').exclude(supply_point_id__isnull=True)
     return supply_points
+
+
+def should_receive_notifications(user, domain):
+    try:
+        return EWSExtension.objects.get(user_id=user.get_id, domain=domain).sms_notifications
+    except EWSExtension.DoesNotExist:
+        return False
+
+
+def set_sms_notifications(user, value):
+    extension = EWSExtension.objects.get(user_id=user.get_id)
+    extension.sms_notifications = value
+    extension.save()
