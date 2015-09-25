@@ -2473,6 +2473,41 @@ class DomainRequest(models.Model):
                                     email_from=settings.DEFAULT_FROM_EMAIL)
 
 
+class EWSExtension(models.Model):
+    user_id = models.CharField(max_length=128, db_index=True)
+    domain = models.CharField(max_length=128)
+    phone_number = models.CharField(max_length=80, null=True)
+    location_id = models.CharField(max_length=128, null=True, db_index=True)
+    sms_notifications = models.BooleanField(default=False)
+
+    @property
+    def web_user(self):
+        return WebUser.get(self.user_id)
+
+    @property
+    def verified_number(self):
+        return VerifiedNumber.by_phone(self.phone_number)
+
+    @property
+    def domain_object(self):
+        return Domain.get_by_name(self.domain)
+
+    @property
+    def web_user(self):
+        return WebUser.get(self.user_id)
+
+    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+        old_phone_number = None
+        if self.pk:
+            old_phone_number = EWSExtension.objects.get(pk=self.pk).phone_number
+        super(EWSExtension, self).save(force_insert, force_update, using, update_fields)
+        web_user = self.web_user
+        if self.phone_number != old_phone_number:
+            if old_phone_number:
+                web_user.delete_verified_number(old_phone_number)
+            web_user.save_verified_number(self.domain, self.phone_number, True)
+
+
 class Invitation(Document):
     email = StringProperty()
     invited_by = StringProperty()

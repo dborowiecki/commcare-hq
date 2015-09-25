@@ -3,6 +3,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms import layout as crispy
 from crispy_forms.layout import Div, Fieldset, HTML, Layout, Submit
 import datetime
+from corehq.apps.sms.mixin import VerifiedNumber
 from dimagi.utils.django.fields import TrimmedCharField
 from django import forms
 from django.core.validators import EmailValidator, validate_email
@@ -19,7 +20,7 @@ from corehq.apps.domain.forms import EditBillingAccountInfoForm
 from corehq.apps.domain.models import Domain
 from corehq.apps.locations.models import Location
 from corehq.apps.registration.utils import handle_changed_mailchimp_email
-from corehq.apps.users.models import CouchUser
+from corehq.apps.users.models import CouchUser, EWSExtension
 from corehq.apps.users.util import format_username, cc_user_domain
 from corehq.apps.app_manager.models import validate_lang
 from corehq.apps.programs.models import Program
@@ -430,6 +431,8 @@ class MultipleSelectionForm(forms.Form):
 
 
 class SupplyPointSelectWidget(forms.Widget):
+    view = 'corehq.apps.locations.views.child_locations_for_select2'
+
     def __init__(self, attrs=None, domain=None, id='supply-point', multiselect=False):
         super(SupplyPointSelectWidget, self).__init__(attrs)
         self.domain = domain
@@ -441,9 +444,13 @@ class SupplyPointSelectWidget(forms.Widget):
             'id': self.id,
             'name': name,
             'value': value or '',
-            'query_url': reverse('corehq.apps.locations.views.child_locations_for_select2', args=[self.domain]),
+            'query_url': reverse(self.view, args=[self.domain]),
             'multiselect': self.multiselect,
         }))
+
+
+class FacilitiesSelectWidget(SupplyPointSelectWidget):
+    view = 'corehq.apps.locations.views.non_administrative_locations_for_select2'
 
 
 class CommtrackUserForm(forms.Form):
@@ -475,6 +482,43 @@ class CommtrackUserForm(forms.Form):
                 user.set_location(Location.get(location_id))
         else:
             user.unset_location()
+
+
+class EWSUserSettings(forms.Form):
+    facility = forms.CharField(required=False)
+    phone_number = forms.CharField(max_length=80, required=False,
+                                   help_text='Please enter number, including international code, in digits only.')
+    sms_notifications = forms.BooleanField(required=False, label='Needs SMS notifications')
+
+    def __init__(self, *args, **kwargs):
+        self.user_id = kwargs.pop('user_id')
+        domain = None
+        if 'domain' in kwargs:
+            domain = kwargs['domain']
+            del kwargs['domain']
+        super(EWSUserSettings, self).__init__(*args, **kwargs)
+        self.fields['facility'].widget = FacilitiesSelectWidget(domain=domain, id='facility')
+
+    def clean_phone_number(self):
+        phone_number = self.cleaned_data['phone_number']
+        phone_number = re.sub('\s|\+|\-', '', phone_number)
+        if phone_number == '':
+            return None
+        elif not re.match(r'\d+$', phone_number):
+            raise forms.ValidationError(_("%s is an invalid phone number." % phone_number))
+        else:
+            vn = VerifiedNumber.by_phone(phone_number)
+            if vn and vn.owner_id != self.user_id:
+                raise forms.ValidationError(_("%s is already used." % phone_number))
+        return phone_number
+
+    def save(self, user, domain):
+        ews_extension = EWSExtension.objects.get_or_create(user_id=user.get_id)[0]
+        ews_extension.domain = domain
+        ews_extension.location_id = self.cleaned_data['facility']
+        ews_extension.phone_number = self.cleaned_data['phone_number']
+        ews_extension.sms_notifications = self.cleaned_data['sms_notifications']
+        ews_extension.save()
 
 
 class DomainRequestForm(forms.Form):

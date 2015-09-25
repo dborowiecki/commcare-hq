@@ -765,15 +765,16 @@ def sync_openlmis(request, domain):
     return HttpResponse('OK')
 
 
+def loc_to_payload(loc):
+    return {'id': loc.location_id, 'name': loc.display_name}
+
+
 @locations_access_required
 def child_locations_for_select2(request, domain):
     id = request.GET.get('id')
     ids = request.GET.get('ids')
     query = request.GET.get('name', '').lower()
     user = request.couch_user
-
-    def loc_to_payload(loc):
-        return {'id': loc.location_id, 'name': loc.display_name}
 
     if id:
         try:
@@ -811,3 +812,37 @@ def child_locations_for_select2(request, domain):
             locs = locs.filter(name__icontains=query)
 
         return json_response(map(loc_to_payload, locs[:10]))
+
+
+@locations_access_required
+def non_administrative_locations_for_select2(request, domain):
+    id = request.GET.get('id')
+    query = request.GET.get('name', '').lower()
+    if id:
+        try:
+            loc = SQLLocation.objects.get(location_id=id)
+            if loc.domain != domain:
+                raise SQLLocation.DoesNotExist()
+        except SQLLocation.DoesNotExist:
+            return json_response(
+                {'message': 'no location with id %s found' % id},
+                status_code=404,
+            )
+        else:
+            return json_response(loc_to_payload(loc))
+
+
+    locs = []
+    user = request.couch_user
+
+    user_loc = user.get_sql_location(domain)
+
+    if user_can_edit_any_location(user, request.project):
+        locs = SQLLocation.objects.filter(domain=domain, location_type__administrative=False)
+    elif user_loc:
+        locs = user_loc.get_descendants(include_self=True, location_type__administrative=False)
+
+    if locs != [] and query:
+        locs = locs.filter(name__icontains=query)
+
+    return json_response(map(loc_to_payload, locs[:10]))

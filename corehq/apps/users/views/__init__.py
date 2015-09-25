@@ -17,6 +17,7 @@ from corehq.apps.style.decorators import (
 )
 from corehq.apps.users.decorators import require_can_edit_web_users, require_permission_to_edit_user
 from corehq.elastic import ADD_TO_ES_FILTER, es_query, ES_URLS
+from corehq.toggles import EWS_WEB_USER_EXTENSION
 from dimagi.utils.decorators.memoized import memoized
 from django_prbac.utils import has_privilege
 import langcodes
@@ -42,10 +43,11 @@ from corehq.apps.hqwebapp.utils import InvitationView
 from corehq.apps.hqwebapp.views import BasePageView
 from corehq.apps.translations.models import StandaloneTranslationDoc
 from corehq.apps.users.forms import (BaseUserInfoForm, CommtrackUserForm, DomainRequestForm,
-                                     UpdateMyAccountInfoForm, UpdateUserPermissionForm, UpdateUserRoleForm)
+                                     UpdateMyAccountInfoForm, UpdateUserPermissionForm, UpdateUserRoleForm,
+                                     EWSUserSettings)
 from corehq.apps.users.models import (CouchUser, CommCareUser, WebUser, DomainRequest,
                                       DomainRemovalRecord, UserRole, AdminUserRole, DomainInvitation, PublicUser,
-                                      DomainMembershipError)
+                                      DomainMembershipError, EWSExtension)
 from corehq.apps.domain.decorators import (login_and_domain_required, require_superuser, domain_admin_required)
 from corehq.apps.orgs.models import Team
 from corehq.apps.reports.util import get_possible_reports
@@ -206,6 +208,32 @@ class BaseEditUserView(BaseUserSettingsView):
             initial={'location': linked_loc, 'program_id': linked_prog}
         )
 
+    @property
+    @memoized
+    def ews_form(self):
+        if self.request.method == "POST" and self.request.POST['form_type'] == "ews":
+            return EWSUserSettings(self.request.POST, domain=self.domain, user_id=self.editable_user_id)
+
+        try:
+            extension = EWSExtension.objects.get(user_id=self.editable_user_id, domain=self.domain)
+            location_id = extension.location_id
+            phone_number = extension.phone_number
+            sms_notifications = extension.sms_notifications
+        except EWSExtension.DoesNotExist:
+            location_id = None
+            phone_number = None
+            sms_notifications = None
+
+        return EWSUserSettings(
+            domain=self.domain,
+            user_id=self.editable_user_id,
+            initial={
+                'facility': location_id,
+                'phone_number': phone_number,
+                'sms_notifications': sms_notifications
+            }
+        )
+
     def update_user(self):
         if self.form_user_update.is_valid():
             old_lang = self.request.couch_user.language
@@ -226,6 +254,9 @@ class BaseEditUserView(BaseUserSettingsView):
             if self.request.project.commtrack_enabled:
                 self.editable_user.get_domain_membership(self.domain).program_id = self.request.POST['program_id']
             self.editable_user.save()
+        elif EWS_WEB_USER_EXTENSION.enabled(self.domain) and \
+                        self.request.POST['form_type'] == "ews" and self.ews_form.is_valid():
+            self.ews_form.save(self.editable_user, self.domain)
         elif self.request.POST['form_type'] == "update-user":
             if all([self.update_user(), self.custom_user_is_valid()]):
                 messages.success(self.request, _('Changes saved for user "%s"') % self.editable_user.username)
@@ -271,8 +302,12 @@ class EditWebUserView(BaseEditUserView):
         if (self.request.project.commtrack_enabled or
                 self.request.project.uses_locations):
             ctx.update({'update_form': self.commtrack_form})
+
         if self.request.couch_user.is_superuser:
             ctx.update({'update_permissions': True})
+
+        if EWS_WEB_USER_EXTENSION.enabled(self.domain):
+            ctx['ews_form'] = self.ews_form
 
         return ctx
 

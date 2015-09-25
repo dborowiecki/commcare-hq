@@ -661,3 +661,10 @@ LEGACY_SYNC_SUPPORT = StaticToggle(
     TAG_EXPERIMENTAL,
     [NAMESPACE_DOMAIN]
 )
+
+EWS_WEB_USER_EXTENSION = StaticToggle(
+    'ews_web_user_extension',
+    'Enable EWSGhana web user extension',
+    TAG_ONE_OFF,
+    [NAMESPACE_DOMAIN]
+)
