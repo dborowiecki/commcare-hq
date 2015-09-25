@@ -4,12 +4,13 @@ import requests
 from corehq.apps.commtrack.dbaccessors.supply_point_case_by_domain_external_id import \
     get_supply_point_case_by_domain_external_id
 from corehq.apps.products.models import SQLProduct
+from corehq.apps.sms.mixin import VerifiedNumber
 from custom.ewsghana.models import FacilityInCharge
 from custom.ewsghana.utils import TEACHING_HOSPITAL_MAPPING, TEACHING_HOSPITALS
 from dimagi.utils.dates import force_to_datetime
 from corehq.apps.commtrack.models import SupplyPointCase, CommtrackConfig
 from corehq.apps.locations.models import SQLLocation, LocationType
-from corehq.apps.users.models import WebUser, UserRole, Permissions, CouchUser
+from corehq.apps.users.models import WebUser, UserRole, Permissions, CouchUser, EWSExtension
 from custom.api.utils import apply_updates
 from custom.ewsghana.extensions import ews_product_extension, ews_webuser_extension
 from dimagi.ext.jsonobject import JsonObject, StringProperty, BooleanProperty, ListProperty, \
@@ -538,6 +539,18 @@ class EWSApi(APISynchronization):
                     self._set_in_charges(in_charge, sql_location)
         return location
 
+    def _create_extension(self, web_user, contact, facility_id, sms_notifications):
+        extension = EWSExtension.objects.get_or_create(user_id=web_user.get_id)[0]
+        if contact.phone_numbers:
+            extension.phone_number = contact.phone_numbers[0]
+            v = VerifiedNumber.by_phone(extension.phone_number, include_pending=True)
+            if v and v.domain in self._get_logistics_domains():
+                v.delete()
+        extension.domain = self.domain
+        extension.location_id = facility_id
+        extension.sms_notifications = sms_notifications
+        extension.save()
+
     def web_user_sync(self, ews_webuser):
         username = ews_webuser.email.lower()
         if not username:
@@ -555,7 +568,6 @@ class EWSApi(APISynchronization):
             'date_joined': force_to_datetime(ews_webuser.date_joined),
             'password_hashed': True,
         }
-        sql_location = None
         location_id = None
         if ews_webuser.location:
             try:
@@ -582,30 +594,39 @@ class EWSApi(APISynchronization):
         if dm.location_id != location_id:
             dm.location_id = location_id
 
+        facility_id = None
+        if ews_webuser.supply_point:
+            supply_point = get_supply_point_case_by_domain_external_id(self.domain, ews_webuser.supply_point)
+            if supply_point:
+                facility_id = supply_point.location_id
+
         if ews_webuser.contact:
-            contact = self.sms_user_sync(ews_webuser.contact)
-            if sql_location:
-                contact.set_location(sql_location.couch_location)
-                contact.save()
+            self._create_extension(user, ews_webuser.contact, facility_id, ews_webuser.sms_notifications)
 
         if ews_webuser.is_superuser:
             dm.role_id = UserRole.by_domain_and_name(self.domain, 'Administrator')[0].get_id
         elif ews_webuser.groups and ews_webuser.groups[0].name == 'facility_manager':
             dm.role_id = UserRole.by_domain_and_name(self.domain, 'Facility manager')[0].get_id
         else:
-            if ews_webuser.supply_point:
-                supply_point = get_supply_point_case_by_domain_external_id(self.domain, ews_webuser.supply_point)
-                if supply_point:
-                    dm.location_id = supply_point.location_id
-                    dm.role_id = UserRole.by_domain_and_name(self.domain, 'Web Reporter')[0].get_id
-                else:
-                    dm.role_id = UserRole.get_read_only_role_by_domain(self.domain).get_id
+            if facility_id:
+                dm.role_id = UserRole.by_domain_and_name(self.domain, 'Web Reporter')[0].get_id
             else:
                 dm.role_id = UserRole.get_read_only_role_by_domain(self.domain).get_id
         user.save()
         return user
 
+    def _is_phone_number_assigned_to_web_user(self, phone_number):
+        try:
+            EWSExtension.objects.get(phone_number=phone_number, domain=self.domain)
+            return True
+        except EWSExtension.DoesNotExist:
+            return False
+
     def sms_user_sync(self, ews_smsuser, **kwargs):
+        if ews_smsuser.phone_numbers:
+            if self._is_phone_number_assigned_to_web_user(ews_smsuser.phone_numbers[0]):
+                return
+
         sms_user = super(EWSApi, self).sms_user_sync(ews_smsuser, **kwargs)
         if not sms_user:
             return None

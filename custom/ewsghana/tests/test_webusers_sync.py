@@ -4,7 +4,7 @@ from django.test import TestCase
 from corehq.apps.commtrack.tests.util import bootstrap_domain as initial_bootstrap
 from corehq.apps.locations.models import SQLLocation
 from corehq.apps.locations.tests.util import delete_all_locations
-from corehq.apps.users.models import WebUser, UserRole, CommCareUser
+from corehq.apps.users.models import WebUser, UserRole, CommCareUser, EWSExtension
 from custom.ewsghana.api import EWSUser, EWSApi, Product, Location
 
 from custom.ewsghana.tests.mock_endpoint import MockEndpoint
@@ -75,12 +75,10 @@ class WebUsersSyncTest(TestCase):
         location = SQLLocation.objects.get(external_id=1, domain=TEST_DOMAIN)
         self.assertEqual(ewsghana_webuser.get_domain_membership(TEST_DOMAIN).location_id, location.location_id)
 
-        sms_users = list(CommCareUser.by_domain(TEST_DOMAIN))
-        self.assertEqual(len(sms_users), 1)
+        extensions = EWSExtension.objects.all()
+        self.assertEqual(extensions.count(), 1)
 
-        sms_user = sms_users[0]
-
-        self.assertEqual(sms_user.location_id, location.location_id)
+        self.assertEqual(extensions[0].user_id, ewsghana_webuser.get_id)
 
     def test_create_web_reporter(self):
         with open(os.path.join(self.datapath, 'sample_webusers.json')) as f:
@@ -92,5 +90,5 @@ class WebUsersSyncTest(TestCase):
         web_reporter_role = UserRole.by_domain_and_name(TEST_DOMAIN, 'Web Reporter')[0]
         dm = web_users[0].get_domain_membership(TEST_DOMAIN)
         self.assertEqual(web_reporter_role.get_id, dm.role_id)
-        location = SQLLocation.objects.get(external_id=620, domain=TEST_DOMAIN)
+        location = SQLLocation.objects.get(external_id=1, domain=TEST_DOMAIN)
         self.assertEqual(location.location_id, ewsghana_webuser.get_domain_membership(TEST_DOMAIN).location_id)
