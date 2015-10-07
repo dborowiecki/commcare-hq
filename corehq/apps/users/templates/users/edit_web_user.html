@@ -72,4 +72,16 @@
             </div>
         </form>
     {% endif %}
+    {% if ews_form %}
+        <form id="commtrack_form" class="form form-horizontal" name="" method="post">
+            <input type="hidden" name="form_type" value="ews" />
+            <fieldset>
+                <legend>{% trans 'EWS Settings' %}</legend>
+                {% include 'hqstyle/forms/basic_fieldset.html' with form=ews_form %}
+            </fieldset>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">{% trans 'Update EWS Settings' %}</button>
+            </div>
+        </form>
+    {% endif %}
 {% endblock %}

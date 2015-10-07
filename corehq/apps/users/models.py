@@ -2474,6 +2474,25 @@ class DomainRequest(models.Model):
                                     email_from=settings.DEFAULT_FROM_EMAIL)
 
 
+class EWSExtension(models.Model):
+    user_id = models.CharField(max_length=128, db_index=True)
+    domain = models.CharField(max_length=128)
+    location_id = models.CharField(max_length=128, null=True, db_index=True)
+    sms_notifications = models.BooleanField(default=False)
+
+    @property
+    def web_user(self):
+        return WebUser.get(self.user_id)
+
+    @property
+    def verified_number(self):
+        return VerifiedNumber.by_phone(self.phone_number)
+
+    @property
+    def domain_object(self):
+        return Domain.get_by_name(self.domain)
+
+
 class Invitation(Document):
     email = StringProperty()
     invited_by = StringProperty()
