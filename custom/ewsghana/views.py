@@ -268,26 +268,3 @@ def non_administrative_locations_for_select2(request, domain):
         locs = locs.filter(name__icontains=query)
 
     return json_response(map(loc_to_payload, locs[:10]))
-
-
-class BalanceMigrationView(BaseDomainView):
-
-    template_name = 'ewsghana/balance.html'
-    section_name = 'Balance'
-    section_url = ''
-
-    @property
-    def page_context(self):
-        return {
-            'stats': get_object_or_404(EWSMigrationStats, domain=self.domain),
-            'products_count': SQLProduct.objects.filter(domain=self.domain).count(),
-            'locations_count': SQLLocation.objects.filter(
-                domain=self.domain, location_type__administrative=True
-            ).exclude(is_archived=True).count(),
-            'supply_points_count': SQLLocation.objects.filter(
-                domain=self.domain, location_type__administrative=False
-            ).exclude(is_archived=True).count(),
-            'web_users_count': WebUser.by_domain(self.domain, reduce=True)[0]['value'],
-            'sms_users_count': CommCareUser.by_domain(self.domain, reduce=True)[0]['value'],
-            'problems': EWSMigrationProblem.objects.filter(domain=self.domain)
-        }
