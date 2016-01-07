@@ -70,8 +70,12 @@ class MigrationTaskTest(TestCase):
         web_user.get_domain_membership(TEST_DOMAIN).location_id = None
         web_user.save()
 
+        sms_user = CommCareUser.by_domain(TEST_DOMAIN)[0]
+        sms_user.phone_numbers = []
+        sms_user.save()
+
         balance_migration_task(TEST_DOMAIN, endpoint)
-        self.assertEqual(ILSMigrationProblem.objects.count(), 1)
+        self.assertEqual(ILSMigrationProblem.objects.count(), 2)
 
         bootstrap_domain(ILSGatewayAPI(TEST_DOMAIN, endpoint))
         self.assertEqual(ILSMigrationProblem.objects.count(), 0)

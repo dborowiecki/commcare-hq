@@ -3,7 +3,8 @@ from django.core.validators import validate_email
 from django.db import transaction
 
 from corehq.apps.locations.models import SQLLocation
-from corehq.apps.users.models import WebUser
+from corehq.apps.sms.mixin import apply_leniency, VerifiedNumber
+from corehq.apps.users.models import WebUser, CommCareUser
 from custom.ilsgateway.models import ILSMigrationStats, ILSMigrationProblem
 from custom.logistics.mixin import UserMigrationMixin
 from custom.logistics.utils import iterate_over_api_objects
@@ -18,6 +19,70 @@ class BalanceMigration(UserMigrationMixin):
     def _get_total_counts(self, func, limit=1, **kwargs):
         meta, _ = func(limit=limit, **kwargs)
         return meta['total_count'] if meta else 0
+
+    @transaction.atomic
+    def validate_sms_users(self, date=None):
+        for sms_user in iterate_over_api_objects(
+                self.endpoint.get_smsusers, filters=dict(date_updated__gte=date)
+        ):
+            description = ""
+            user = CommCareUser.get_by_username(self.get_username(sms_user)[0])
+            if not user:
+                description = "Not exists"
+                ILSMigrationProblem.objects.create(
+                    domain=self.domain,
+                    external_id=sms_user.id,
+                    object_type='smsuser',
+                    description=description
+                )
+                continue
+
+            phone_numbers = {
+                apply_leniency(connection.phone_number) for connection in sms_user.phone_numbers
+            }
+
+            if phone_numbers - set(user.phone_numbers):
+                description += "Invalid phone numbers, "
+
+            phone_to_backend = {
+                connection.phone_number: connection.backend
+                for connection in sms_user.phone_numbers
+            }
+
+            default_phone_number = [
+                connection.phone_number for connection in sms_user.phone_numbers if connection.default
+            ]
+
+            default_phone_number = default_phone_number[0] if default_phone_number else None
+
+            if default_phone_number and (apply_leniency(default_phone_number) != user.default_phone_number):
+                description += "Invalid default phone number, "
+
+            for phone_number in user.phone_numbers:
+                vn = VerifiedNumber.by_phone(phone_number)
+                if not vn or vn.owner_id != user.get_id:
+                    description += "Phone number not verified, "
+                else:
+                    backend = phone_to_backend.get(phone_number)
+                    if backend != 'push_backend' and vn.backend_id != 'MOBILE_BACKEND_TEST' \
+                            or (backend == 'push_backend' and vn.backend_id):
+                        description += "Invalid backend, "
+
+            if description:
+                migration_problem, _ = ILSMigrationProblem.objects.get_or_create(
+                    domain=self.domain,
+                    object_id=user.get_id,
+                    object_type='smsuser'
+                )
+                migration_problem.external_id = sms_user.id
+                migration_problem.description = description.rstrip(' ,')
+                migration_problem.save()
+            else:
+                ILSMigrationProblem.objects.filter(
+                    domain=self.domain,
+                    external_id=sms_user.id,
+                    object_type='smsuser'
+                ).delete()
 
     @transaction.atomic
     def validate_web_users(self, date=None):
@@ -86,3 +151,4 @@ class BalanceMigration(UserMigrationMixin):
         stats.save()
 
         self.validate_web_users(date)
+        self.validate_sms_users(date)
