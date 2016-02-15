@@ -7,24 +7,28 @@ from dimagi.utils.dates import add_months
 from custom.ilsgateway.models import Alert, ProductAvailabilityData
 
 
-def populate_no_primary_alerts(location, date):
+def populate_no_primary_alerts(sql_location, date):
     # First of all we have to delete all existing alert for this date.
-    alert = Alert.objects.filter(location_id=location.get_id, date=date, type=const.NO_PRIMARY_CONTACT)
+    alert = Alert.objects.filter(location_id=sql_location.location_id, date=date, type=const.NO_PRIMARY_CONTACT)
     alert.delete()
     # create no primary contact alerts
-    if not get_users_by_location_id(location.domain, location.get_id):
-        create_alert(location, date, NO_PRIMARY_CONTACT, {'org': location})
+    if not get_users_by_location_id(sql_location.domain, sql_location.location_id):
+        create_alert(sql_location.location_id, date, NO_PRIMARY_CONTACT, {'org': sql_location})
 
 
-def populate_facility_stockout_alerts(facility, date):
+def populate_facility_stockout_alerts(sql_location, date):
     # delete stockout alerts
-    alert = Alert.objects.filter(location_id=facility.get_id, date=date, type=const.PRODUCT_STOCKOUT)
+    alert = Alert.objects.filter(location_id=sql_location.location_id, date=date, type=const.PRODUCT_STOCKOUT)
     alert.delete()
     # create stockout alerts
-    product_data = ProductAvailabilityData.objects.filter(location_id=facility.get_id, date=date, without_stock=1)
+    product_data = ProductAvailabilityData.objects.filter(
+        location_id=sql_location.location_id,
+        date=date,
+        without_stock=1
+    )
     for p in product_data:
-        create_alert(facility, date, const.PRODUCT_STOCKOUT,
-                     {'org': facility, 'product': SQLProduct.objects.get(product_id=p.product)})
+        create_alert(sql_location.location_id, date, const.PRODUCT_STOCKOUT,
+                     {'org': sql_location, 'product': SQLProduct.objects.get(product_id=p.product)})
 
 
 def create_multilevel_alert(location, date, alert_type, details):

@@ -346,10 +346,11 @@ def third_soh_task():
 
 def recalculate_on_group_change(location, last_run):
     OrganizationSummary.objects.filter(location_id=location.get_id).delete()
-    process_facility_warehouse_data(location, default_start_date(), last_run.end)
+    sql_location = location.sql_location
+    process_facility_warehouse_data(sql_location, default_start_date(), last_run.end)
 
-    for parent in location.sql_location.get_ancestors(ascending=True):
-        process_non_facility_warehouse_data(parent.couch_location,
+    for parent in sql_location.get_ancestors(ascending=True):
+        process_non_facility_warehouse_data(parent,
                                             default_start_date(), last_run.end, strict=False)
 
 
@@ -374,7 +375,7 @@ def recalculate_on_parent_change(location, previous_parent_id, last_run):
     for location_type in ["DISTRICT", "REGION", "MSDZONE"]:
         for sql_location in type_location_map[location_type]:
             process_non_facility_warehouse_data(
-                sql_location.couch_location, default_start_date(), last_run.end, strict=False
+                sql_location, default_start_date(), last_run.end, strict=False
             )
 
 
