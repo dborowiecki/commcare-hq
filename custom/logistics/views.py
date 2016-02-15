@@ -67,7 +67,6 @@ class BaseConfigView(BaseCommTrackManageView):
         config.username = payload['source_config'].get('username', None)
         config.password = payload['source_config'].get('password', None)
         config.steady_sync = payload['source_config'].get('steady_sync', False)
-        config.all_stock_data = payload['source_config'].get('all_stock_data', False)
         config.save()
         return self.get(request, *args, **kwargs)
 

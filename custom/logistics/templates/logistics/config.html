@@ -43,6 +43,7 @@
 
     {% if request.couch_user.is_previewer or is_developer %}
     <form id="settings" class="form form-horizontal" method="post">
+        {% csrf_token %}
         <h3>{{ current_page.page_name }} {% trans "Integration" %}</h3>
 
         <fieldset>
@@ -63,14 +64,6 @@
                 </label>
                 <div class="controls">
                   <input id="steady_sync" type="checkbox" data-bind="checked: steady_sync">
-                </div>
-            </div>
-            <div class="control-group" >
-                <label class="control-label" for="all_stock_data">
-                    {% trans "All stock data migration" %}
-                </label>
-                <div class="controls">
-                  <input id="all_stock_data" type="checkbox" data-bind="checked: all_stock_data">
                 </div>
             </div>
             <div class="control-group" >

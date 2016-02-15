@@ -31,13 +31,6 @@ class ILSStockDataSynchronization(StockDataSynchronization):
             domain=self.domain
         ).exclude(external_id__isnull=True).order_by('created_at').values_list('external_id', flat=True)
 
-    @property
-    def test_facilities(self):
-        test_region = SQLLocation.objects.get(domain=self.domain, external_id=TEST_REGION_ID)
-        return SQLLocation.objects.filter(
-            Q(domain=self.domain) & (Q(parent=test_region) | Q(parent__parent=test_region))
-        ).order_by('id').values_list('external_id', flat=True)
-
     def get_last_processed_location(self, checkpoint):
         return checkpoint.location.external_id
 

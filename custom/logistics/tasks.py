@@ -38,10 +38,7 @@ def stock_data_task(api_object):
         checkpoint.start_date = start_date
         checkpoint.save()
 
-    if not api_object.all_stock_data:
-        facilities = api_object.test_facilities
-    else:
-        facilities = api_object.get_ids()
+    facilities = api_object.get_ids()
     if checkpoint.location:
         external_id = api_object.get_last_processed_location(checkpoint)
         if external_id:

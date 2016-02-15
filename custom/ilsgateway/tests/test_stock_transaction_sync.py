@@ -38,7 +38,6 @@ class TestStockTransactionSync(TestCase):
         config = ILSGatewayConfig()
         config.domain = TEST_DOMAIN
         config.enabled = True
-        config.all_stock_data = True
         config.password = 'dummy'
         config.username = 'dummy'
         config.url = 'http://test-api.com/'

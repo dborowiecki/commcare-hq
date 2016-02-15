@@ -194,38 +194,16 @@ def default_start_date():
     return datetime(2012, 1, 1)
 
 
-def _get_test_locations(domain):
-    """
-        returns test region and all its children
-    """
-    test_region = SQLLocation.objects.get(domain=domain, external_id=const.TEST_REGION_ID)
-    sql_locations = SQLLocation.objects.filter(
-        Q(domain=domain) & (Q(parent=test_region) | Q(parent__parent=test_region))
-    ).exclude(is_archived=True).order_by('id').only('location_id')
-    return [sql_location.couch_location for sql_location in sql_locations] + \
-           [test_region.couch_location]
-
-
-def populate_report_data(start_date, end_date, domain, runner, locations=None, strict=True):
+def populate_report_data(start_date, end_date, domain, runner, strict=True):
     # first populate all the warehouse tables for all facilities
     # hard coded to know this is the first date with data
-    start_date = max(start_date, default_start_date())
 
-    # For QA purposes generate reporting data for only some small part of data.
-    if not ILSGatewayConfig.for_domain(domain).all_stock_data:
-        if locations is None:
-            locations = _get_test_locations(domain)
-        facilities = filter(lambda location: location.location_type == 'FACILITY', locations)
-        non_facilities_types = ['DISTRICT', 'REGION', 'MSDZONE', 'MOHSW']
-        non_facilities = []
-        for location_type in non_facilities_types:
-            non_facilities.extend(filter(lambda location: location.location_type == location_type, locations))
-    else:
-        facilities = Location.filter_by_type(domain, 'FACILITY')
-        non_facilities = list(Location.filter_by_type(domain, 'DISTRICT'))
-        non_facilities += list(Location.filter_by_type(domain, 'REGION'))
-        non_facilities += list(Location.filter_by_type(domain, 'MSDZONE'))
-        non_facilities += list(Location.filter_by_type(domain, 'MOHSW'))
+    start_date = max(start_date, default_start_date())
+    facilities = Location.filter_by_type(domain, 'FACILITY')
+    non_facilities = list(Location.filter_by_type(domain, 'DISTRICT'))
+    non_facilities += list(Location.filter_by_type(domain, 'REGION'))
+    non_facilities += list(Location.filter_by_type(domain, 'MSDZONE'))
+    non_facilities += list(Location.filter_by_type(domain, 'MOHSW'))
 
     if runner.location:
         if runner.location.location_type.name.upper() != 'FACILITY':
