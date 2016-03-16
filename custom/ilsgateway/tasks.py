@@ -12,6 +12,7 @@ from casexml.apps.stock.models import StockReport, StockTransaction
 from corehq.apps.commtrack.models import StockState
 from corehq.apps.locations.models import SQLLocation, Location
 from corehq.apps.products.models import Product
+from corehq.util.decorators import serial_task
 from custom.ilsgateway.api import ILSGatewayEndpoint, ILSGatewayAPI
 from custom.ilsgateway.balance import BalanceMigration
 from custom.ilsgateway.tanzania.reminders import REMINDER_MONTHLY_SOH_SUMMARY, REMINDER_MONTHLY_DELIVERY_SUMMARY, \
@@ -244,13 +245,13 @@ def recalculate_march_reporting_data_task(domain):
         process_non_facility_warehouse_data(non_facility, datetime(2016, 3, 1), end_date, strict=False)
 
 
-@periodic_task(run_every=crontab(hour="4", minute="00", day_of_week="*"),
+@periodic_task(run_every=crontab(hour="4,10", minute="00", day_of_week="*"),
                queue='logistics_background_queue')
 def report_run_periodic_task():
-    report_run('ils-gateway')
+    report_run.delay('ils-gateway')
 
 
-@task(queue='logistics_background_queue', ignore_result=True)
+@serial_task(unique_key='{domain}', max_retries=0, timeout=60 * 60 * 4, queue='logistics_background_queue')
 def report_run(domain, locations=None, strict=True):
     last_successful_run = ReportRun.last_success(domain)
     recalculation_on_location_change(domain, last_successful_run)
@@ -258,10 +259,6 @@ def report_run(domain, locations=None, strict=True):
     last_run = ReportRun.last_run(domain)
     start_date = (datetime.min if not last_successful_run else last_successful_run.end)
     end_date = datetime.utcnow()
-
-    running = ReportRun.objects.filter(complete=False, domain=domain)
-    if running.count() > 0:
-        raise Exception("Warehouse already running, will do nothing...")
 
     if last_run and last_run.has_error:
         run = last_run
