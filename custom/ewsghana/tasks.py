@@ -21,11 +21,8 @@ from custom.ewsghana.reminders.second_soh_reminder import SecondSOHReminder
 from custom.ewsghana.reminders.stockout_reminder import StockoutReminder
 from custom.ewsghana.reminders.third_soh_reminder import ThirdSOHReminder
 from custom.ewsghana.reminders.visit_website_reminder import VisitWebsiteReminder
-from custom.ewsghana.stock_data import EWSStockDataSynchronization
-from custom.logistics.commtrack import bootstrap_domain as ews_bootstrap_domain, \
-    bootstrap_domain
+from custom.logistics.commtrack import bootstrap_domain
 from custom.logistics.models import StockDataCheckpoint
-from custom.logistics.tasks import stock_data_task
 from dimagi.utils.couch.database import iter_docs
 
 
