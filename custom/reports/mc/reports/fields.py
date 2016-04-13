@@ -14,4 +14,3 @@ class HealthFacilityField(AsyncDrillableFilter):
         {"type": "district", "display": "name"},
         {"type": "hf", "parent_ref": "district_id", "references": "id", "display": "name"},
     ]
-
