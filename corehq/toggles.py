@@ -832,6 +832,14 @@ UNLIMITED_REPORT_BUILDER_REPORTS = StaticToggle(
 )
 
 
+ZAPIER_INTEGRATION = StaticToggle(
+    'zapier_integration',
+    'Allow to use domain in Zapier application',
+    TAG_EXPERIMENTAL,
+    [NAMESPACE_DOMAIN]
+)
+
+
 def enable_toggles_for_scale_beta(domain):
     USE_SQL_BACKEND.set(domain, True, namespace=NAMESPACE_DOMAIN)
     NEW_EXPORTS.set(domain, True, namespace=NAMESPACE_DOMAIN)
