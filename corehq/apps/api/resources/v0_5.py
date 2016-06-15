@@ -15,7 +15,9 @@ from tastypie import fields
 from tastypie.bundle import Bundle
 from corehq.apps.api.resources.v0_1 import RequirePermissionAuthentication, AdminAuthentication
 from corehq.apps.api.util import get_obj
-from corehq.apps.app_manager.dbaccessors import get_all_apps
+from corehq.apps.app_manager.dbaccessors import get_apps_in_domain
+from corehq.apps.app_manager.fields import get_app_sources
+from corehq.apps.app_manager.models import Application
 from corehq.apps.domain.models import Domain
 from corehq.apps.es import UserES
 
@@ -495,11 +497,8 @@ class StockTransactionResource(HqBaseResource, ModelResource):
         return bundle
 
 
-class UserDomain(object):
-
-    def __init__(self, domain_name='', project_name=''):
-        self.domain_name = domain_name
-        self.project_name = project_name
+UserDomain = namedtuple('UserDomain', 'domain_name project_name')
+UserDomain.__new__.__defaults__ = ('', '')
 
 
 class UserDomainsResource(Resource):
@@ -529,11 +528,8 @@ class UserDomainsResource(Resource):
         return results
 
 
-class Form(object):
-
-    def __init__(self, form_xmlns='', form_name=''):
-        self.form_xmlns = form_xmlns
-        self.form_name = form_name
+Form = namedtuple('Form', 'form_xmlns form_name')
+Form.__new__.__defaults__ = ('', '')
 
 
 class DomainForms(Resource):
@@ -553,11 +549,16 @@ class DomainForms(Resource):
             return []
 
         results = []
-        for application in get_all_apps(domain):
-            forms_objects = application.get_forms(bare=False)
-            for form_object in forms_objects:
-                form = form_object['form']
-                module = form_object['module']
-                form_name = '{} > {} > {}'.format(application.name, module.name['en'], form.name['en'])
-                results.append(Form(form_xmlns=form.xmlns, form_name=form_name))
+        application_id = bundle.request.GET.get('application_id')
+        if not application_id:
+            return []
+        application = Application.get(docid=application_id)
+        if not application:
+            return []
+        forms_objects = application.get_forms(bare=False)
+        for form_object in forms_objects:
+            form = form_object['form']
+            module = form_object['module']
+            form_name = '{} > {} > {}'.format(application.name, module.name['en'], form.name['en'])
+            results.append(Form(form_xmlns=form.xmlns, form_name=form_name))
         return results

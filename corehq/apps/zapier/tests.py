@@ -6,6 +6,7 @@ from django.test.testcases import TestCase
 from mock import patch
 from tastypie.models import ApiKey
 
+from corehq.apps.app_manager.models import Application
 from corehq.apps.domain.models import Domain
 from corehq.apps.receiverwrapper.util import submit_form_locally
 from corehq.apps.users.models import WebUser
@@ -14,6 +15,7 @@ from corehq.apps.zapier.models import Subscription
 from corehq.toggles import ZAPIER_INTEGRATION
 
 
+APPLICATION_ID = "b2a96ac7f3a12b4a28e905db282a32a2"
 FORM_XMLNS = "https://www.commcarehq.org/test/zapier/"
 XFORM_XML_TEMPLATE = """<?xml version='1.0' ?>
 <data xmlns:jrm="http://dev.commcarehq.org/jr/xforms" xmlns="%s">
@@ -27,7 +29,6 @@ XFORM_XML_TEMPLATE = """<?xml version='1.0' ?>
         <userID>{}</userID>
         <instanceID>{}</instanceID>
     </meta>
-{}
 </data>
 """ % FORM_XMLNS
 ZAPIER_URL = "https://zapier.com/hooks/standard/1387607/5ccf35a5a1944fc9bfdd2c94c28c9885/"
@@ -54,6 +55,7 @@ class TestZapierIntegration(TestCase):
             "subscription_url": ZAPIER_URL,
             "target_url": ZAPIER_URL,
             "event": consts.EventTypes.NEW_FORM,
+            "application": APPLICATION_ID,
             "form": FORM_XMLNS
         }
         response = self.client.post(reverse('zapier:subscribe', kwargs={'domain': self.domain}),
@@ -76,6 +78,7 @@ class TestZapierIntegration(TestCase):
             user_id=self.web_user.get_id,
             domain=TEST_DOMAIN,
             event_name=consts.EventTypes.NEW_FORM,
+            application_id=APPLICATION_ID,
             form_xmlns=FORM_XMLNS
         )
         data = {
@@ -95,12 +98,13 @@ class TestZapierIntegration(TestCase):
             user_id=self.web_user.get_id,
             domain=TEST_DOMAIN,
             event_name=consts.EventTypes.NEW_FORM,
+            application_id=APPLICATION_ID,
             form_xmlns=FORM_XMLNS
         )
 
         with patch('corehq.apps.zapier.models.requests.post',
                    return_value=MockResponse(status_code=200, reason='No reason')) as mock_post:
-            submit_form_locally(XFORM_XML_TEMPLATE, self.domain)
+            submit_form_locally(XFORM_XML_TEMPLATE, self.domain, app_id=APPLICATION_ID)
             self.assertTrue(mock_post.called)
 
     def test_urls_conflict(self):
@@ -108,6 +112,7 @@ class TestZapierIntegration(TestCase):
             "subscription_url": ZAPIER_URL,
             "target_url": ZAPIER_URL,
             "event": consts.EventTypes.NEW_FORM,
+            "application": APPLICATION_ID,
             "form": FORM_XMLNS
         }
         response = self.client.post(reverse('zapier:subscribe', kwargs={'domain': self.domain}),
@@ -128,11 +133,12 @@ class TestZapierIntegration(TestCase):
             user_id=self.web_user.get_id,
             domain=TEST_DOMAIN,
             event_name=consts.EventTypes.NEW_FORM,
+            application_id=APPLICATION_ID,
             form_xmlns=FORM_XMLNS
         )
 
         with patch('corehq.apps.zapier.models.requests.post',
                    return_value=MockResponse(status_code=410, reason='No reason')) as mock_post:
-            submit_form_locally(XFORM_XML_TEMPLATE, self.domain)
+            submit_form_locally(XFORM_XML_TEMPLATE, self.domain, app_id=APPLICATION_ID)
             self.assertTrue(mock_post.called)
             self.assertEqual(Subscription.objects.filter(domain=self.domain).count(), 0)
