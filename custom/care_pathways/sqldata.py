@@ -18,6 +18,7 @@ import urllib
 import re
 from django.utils import html
 from custom.utils.utils import clean_IN_filter_value
+from dimagi.utils.decorators.profile import line_profile
 
 
 def _get_grouping(prop_dict):
@@ -63,7 +64,8 @@ class CareQueryMeta(QueryMeta):
                 if fil.column_name not in external_cols and fil.column_name != 'maxmin':
                     filter_cols.append(fil.column_name)
                 having.append(fil)
-
+        where = having[0:-1]
+        having = having[-1]
         group_having = ''
         having_group_by = []
         if ('disaggregate_by' in filter_values and filter_values['disaggregate_by'] == 'group') or \
@@ -97,8 +99,9 @@ class CareQueryMeta(QueryMeta):
         )
         return select(
             [sqlalchemy.func.count(s1.c.doc_id).label(self.key)] + self.group_by,
+            whereclause=AND(where).build_expression(s1),
             group_by=[s1.c.maxmin] + filter_cols + self.group_by,
-            having=AND(having).build_expression(s1),
+            having=having.build_expression(s1),
             from_obj=join(s1, s2, s1.c.group_id == s2.c.group_id)
         ).params(filter_values)
 
