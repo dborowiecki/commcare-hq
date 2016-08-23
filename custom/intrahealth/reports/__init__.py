@@ -5,7 +5,7 @@ from corehq.apps.locations.models import Location
 from corehq.apps.reports.datatables import DataTablesHeader, DataTablesColumnGroup, DataTablesColumn
 from corehq.apps.reports.sqlreport import DataFormatter, DictDataFormat
 from corehq.util.translation import localize
-from custom.intrahealth.sqldata import NombreData, TauxConsommationData
+from custom.intrahealth.sqldata import NombreData, TauxConsommationData, TauxDeRuptures
 from django.utils.translation import ugettext as _
 from dimagi.utils.decorators.memoized import memoized
 from dimagi.utils.parsing import json_format_date
@@ -44,7 +44,8 @@ class IntraHealthReportConfigMixin(object):
             visit="''",
             strsd=json_format_date(self.datespan.startdate),
             stred=json_format_date(self.datespan.enddate),
-            empty_prd_code='__none__'
+            empty_prd_code='__none__',
+            zero=0
         )
         self.config_update(config)
         return config

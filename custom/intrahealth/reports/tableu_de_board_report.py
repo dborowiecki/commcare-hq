@@ -168,25 +168,25 @@ class TableuDeBoardReport(MultiReport):
 
         if 'district_id' in config:
             return [
-                ConventureData(config=config),
-                PPSAvecDonnees(config=config),
+                # ConventureData(config=config),
+                # PPSAvecDonnees(config=config),
                 TauxDeRuptures(config=config),
-                ConsommationData(config=config),
-                TauxConsommationData(config=config),
-                NombreData(config=config),
-                GestionDeLIPMTauxDeRuptures(config=config),
-                RecouvrementDesCouts(config=config)
+                # ConsommationData(config=config),
+                # TauxConsommationData(config=config),
+                # NombreData(config=config),
+                # GestionDeLIPMTauxDeRuptures(config=config),
+                # RecouvrementDesCouts(config=config)
             ]
         else:
             return [
-                ConventureData(config=config),
-                PPSAvecDonnees(config=config),
-                DispDesProducts(config=config),
+                # ConventureData(config=config),
+                # PPSAvecDonnees(config=config),
+                # DispDesProducts(config=config),
                 TauxDeRuptures(config=config),
-                ConsommationData(config=config),
-                TauxConsommationData(config=config),
-                NombreData(config=config),
-                GestionDeLIPMTauxDeRuptures(config=config),
-                DureeData(config=config),
-                RecouvrementDesCouts(config=config)
+                # ConsommationData(config=config),
+                # TauxConsommationData(config=config),
+                # NombreData(config=config),
+                # GestionDeLIPMTauxDeRuptures(config=config),
+                # DureeData(config=config),
+                # RecouvrementDesCouts(config=config)
             ]

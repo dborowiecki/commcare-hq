@@ -7,6 +7,7 @@ import logging
 from custom.intrahealth import get_location_by_type, PRODUCT_MAPPING, get_domain, PRODUCT_NAMES,\
     get_loc_from_case, COMMANDE_XMLNSES, OPERATEUR_XMLNSES
 
+from corehq.apps.locations.models import Location, SQLLocation
 
 def get_value_from_path(dictionary, path, default_value=None):
     value = dictionary
@@ -51,7 +52,7 @@ def get_product_id(product_name, domain):
 
 
 def _locations_per_type(domain, loc_type, location):
-    return (location.sql_location.get_descendants(include_self=True)
+    return (location.get_descendants(include_self=True)
             .filter(domain=domain, location_type__name=loc_type, is_archived=False).count())
 
 
@@ -178,9 +179,12 @@ class PPSConsumption(fluff.Calculator):
             return
 
         for item in (form.get_data('form/products/item') or []):
+            path = 'is-relevant/{}'
+            if self.field == 'total_stock':
+                path = 'is-relevant/question1/{}'
             yield {
                 'date': real_date,
-                'value': numeric_value(get_value_from_path(item, 'is-relevant/{}'.format(self.field))),
+                'value': numeric_value(get_value_from_path(item, path.format(self.field))),
                 'group_by': [get_product_name(item['@id']), item['@id']]
             }
 

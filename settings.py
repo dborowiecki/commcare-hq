@@ -1042,6 +1042,11 @@ LOGGING = {
             'propagate': True,
             'level': 'INFO',
         },
+        'sqlalchemy': {
+            'handlers': ['console'],
+            'propagate': True,
+            'level': 'DEBUG',
+        },
         'couchdbkit.request': {
             'handlers': ['couch-request-handler'],
             'level': 'DEBUG',

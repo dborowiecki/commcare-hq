@@ -187,10 +187,11 @@ def get_location_by_type(form, type):
         loc = loc[0].couch_location
         if type == 'district':
             return loc
-    for loc_id in loc.lineage:
-        loc = Location.get(loc_id)
-        if unicode(loc.location_type).lower().replace(" ", "") == type:
-            return loc
+    sqlloc = SQLLocation.objects.get(location_id=loc._id)
+    for l in sqlloc.get_ancestors(include_self=True):
+        loc_type = l.location_type.name.lower().replace(" ", "")
+        if loc_type == type:
+            return l
 
 
 def get_real_date(form):
