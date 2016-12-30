@@ -59,9 +59,9 @@ class ASHAReports(GenericTabularReport, NRHMDatespanMixin, CustomProjectReport, 
                 subtitles.extend([
                     _("Block: {0}").format(selected_block),
                 ])
-                if sf != 'sf4' and selected_af:
-                    user = CommCareUser.get(selected_af)
-                    subtitles.append(_("AF: {0} {1}").format(user.first_name, user.last_name))
+                # if sf != 'sf4' and selected_af:
+                #     user = CommCareUser.get(selected_af)
+                #     subtitles.append(_("AF: {0} {1}").format(user.first_name, user.last_name))
 
             if sf in ['sf5', 'sf4', 'sf3']:
                 subtitles.append(
