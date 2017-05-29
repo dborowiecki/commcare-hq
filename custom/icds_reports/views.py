@@ -13,7 +13,7 @@ from django.views.generic.base import View, TemplateView
 from corehq import toggles
 from corehq.apps.domain.decorators import login_and_domain_required
 from corehq.apps.locations.models import SQLLocation, LocationType
-from corehq.apps.locations.permissions import location_safe
+from corehq.apps.locations.permissions import location_safe, user_can_access_location_id
 from corehq.apps.locations.util import location_hierarchy_config
 from custom.icds_reports.filters import CasteFilter, MinorityFilter, DisabledFilter, \
     ResidentFilter, MaternalStatusFilter, ChildAgeFilter, THRBeneficiaryType, ICDSMonthFilter, \
@@ -281,6 +281,20 @@ class PrevalenceOfUndernutritionView(View):
 class LocationView(View):
 
     def get(self, request, *args, **kwargs):
+        if 'location_id' in request.GET:
+            location_id = request.GET['location_id']
+            if not user_can_access_location_id(self.kwargs['domain'], request.couch_user, location_id):
+                return JsonResponse({})
+            location = get_object_or_404(
+                SQLLocation,
+                domain=self.kwargs['domain'],
+                location_id=location_id
+            )
+            return JsonResponse({
+                'name': location.name,
+                'location_type': location.location_type.code
+            })
+
         parent_id = request.GET.get('parent_id')
         locations = SQLLocation.objects.accessible_to_user(self.kwargs['domain'], self.request.couch_user)
         if not parent_id:
