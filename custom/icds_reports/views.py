@@ -617,8 +617,6 @@ class NewbornsWithLowBirthWeightView(View):
         age = self.request.GET.get('age', None)
         if gender:
             config.update({'gender': gender})
-        if age:
-            config.update({'age_tranche': age})
 
         location = request.GET.get('location_id', '')
         loc_level = get_location_filter(location, self.kwargs['domain'], config)
@@ -656,8 +654,6 @@ class EarlyInitiationBreastfeeding(View):
         age = self.request.GET.get('age', None)
         if gender:
             config.update({'gender': gender})
-        if age:
-            config.update({'age_tranche': age})
 
         location = request.GET.get('location_id', '')
         loc_level = get_location_filter(location, self.kwargs['domain'], config)
