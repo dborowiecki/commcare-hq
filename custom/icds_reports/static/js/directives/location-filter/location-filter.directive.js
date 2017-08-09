@@ -295,8 +295,9 @@ function LocationFilterController($scope, $location, $uibModal, locationHierarch
             return;
         }
         var location = _.filter(vm.getLocationsForLevel(selectedLocationIndex() + 1), function(loc) {
-            return loc.name === $location.search().location_id;
+            return loc.location_id === $location.search().location_id;
         });
+        console.log(location);
         if (location.length > 0) {
             var loc_from_map = location[0];
             if (loc_from_map.location_id === newValue.location_id) {
