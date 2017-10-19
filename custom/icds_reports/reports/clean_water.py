@@ -1,6 +1,7 @@
 from collections import OrderedDict, defaultdict
 from datetime import datetime
 
+import six
 from dateutil.relativedelta import relativedelta
 from dateutil.rrule import MONTHLY, rrule
 
@@ -138,7 +139,7 @@ def get_clean_water_data_chart(domain, config, loc_level, show_test=False):
             dict(
                 loc_name=key,
                 percent=(value['in_month'] * 100) / float(value['all'] or 1)
-            ) for key, value in best_worst.iteritems()
+            ) for key, value in six.iteritems(best_worst)
         ],
         key=lambda x: x['percent'],
         reverse=True
@@ -152,7 +153,7 @@ def get_clean_water_data_chart(domain, config, loc_level, show_test=False):
                         'x': key,
                         'y': value['in_month'] / float(value['all'] or 1),
                         'in_month': value['in_month']
-                    } for key, value in data['blue'].iteritems()
+                    } for key, value in six.iteritems(data['blue'])
                 ],
                 "key": "% of AWCs with a source of clean drinking water",
                 "strokeWidth": 2,
@@ -207,7 +208,7 @@ def get_clean_water_sector_data(domain, config, loc_level, location_id, show_tes
             'all': valid or 0
         }
 
-        for prop, value in row_values.iteritems():
+        for prop, value in six.iteritems(row_values):
             tooltips_data[name][prop] += value
 
         value = (in_month or 0) / float(valid or 1)

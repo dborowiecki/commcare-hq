@@ -1,6 +1,7 @@
 from collections import OrderedDict, defaultdict
 from datetime import datetime
 
+import six
 from dateutil.relativedelta import relativedelta
 from dateutil.rrule import rrule, MONTHLY
 from django.db.models.aggregates import Sum, Max
@@ -109,10 +110,10 @@ def get_awcs_covered_sector_data(domain, config, loc_level, location_id, show_te
         row_values = {
             'awcs': awcs
         }
-        for prop, value in row_values.iteritems():
+        for prop, value in six.iteritems(row_values):
             tooltips_data[name][prop] += (value or 0)
 
-    for name, value_dict in tooltips_data.iteritems():
+    for name, value_dict in six.iteritems(tooltips_data):
         chart_data['blue'].append([name, value_dict['awcs']])
 
     for sql_location in loc_children:
@@ -184,7 +185,7 @@ def get_awcs_covered_data_chart(domain, config, loc_level, show_test=False):
         data['pink'][date_in_miliseconds]['y'] += awcs
 
     top_locations = sorted(
-        [dict(loc_name=key, value=sum(value) / len(value)) for key, value in best_worst.iteritems()],
+        [dict(loc_name=key, value=sum(value) / len(value)) for key, value in six.iteritems(best_worst)],
         key=lambda x: x['value'],
         reverse=True
     )
@@ -197,7 +198,7 @@ def get_awcs_covered_data_chart(domain, config, loc_level, show_test=False):
                         'x': key,
                         'y': value['y'] / float(value['all'] or 1),
                         'all': value['all']
-                    } for key, value in data['pink'].iteritems()
+                    } for key, value in six.iteritems(data['pink'])
                 ],
                 "key": "Number of AWCs Launched",
                 "strokeWidth": 2,
