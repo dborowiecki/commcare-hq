@@ -78,6 +78,7 @@ from custom.icds_reports.reports.prevalence_of_undernutrition_data.prevalence_of
     PrevalanceOfUndernutritionReportFactory
 from custom.icds_reports.reports.registered_household import get_registered_household_data_map, \
     get_registered_household_sector_data, get_registered_household_data_chart
+from custom.icds_reports.reports.util import LocationAndDateFilterContext, AllFiltersContext
 
 from custom.icds_reports.sqldata import ChildrenExport, ProgressReport, PregnantWomenExport, \
     DemographicsExport, SystemUsageExport, AWCInfrastructureExport, BeneficiaryExport
@@ -264,6 +265,14 @@ class BaseReportJsonView(View):
         """
         pass
 
+    @abc.abstractproperty
+    def filters_context(self):
+        """
+        Returns:
+             custom.icds_reports.reports.util.FiltersContext
+        """
+        pass
+
     def get_report_instance(self, mode, domain, location_id, date, **kwargs):
         """
         Returns:
@@ -293,17 +302,11 @@ class BaseReportJsonView(View):
         else:
             return None
 
-    @abc.abstractmethod
-    def get_filters(self, request):
-        """
-        Returns:
-             dict
-        """
-        pass
-
     def get(self, request, *args, **kwargs):
         data = self.get_report_instance(
-            **self.get_filters(request)
+            domain=self.kwargs.get('domain'),
+            mode=kwargs.get('step'),
+            **self.filters_context.get_filter_data(request.GET)
         ).get_data()
         return JsonResponse(data={
             'report_data': data
@@ -402,35 +405,9 @@ class PrevalenceOfUndernutritionView(BaseReportJsonView):
     def report_factory(self):
         return PrevalanceOfUndernutritionReportFactory()
 
-    def get_filters(self, request):
-        include_test = request.GET.get('include_test', False)
-        step = self.kwargs.get('step')
-        now = datetime.utcnow()
-        month = int(request.GET.get('month', now.month))
-        year = int(request.GET.get('year', now.year))
-        test_date = datetime(year, month, 1)
-
-        domain = self.kwargs['domain']
-
-        location = request.GET.get('location_id', '')
-
-        gender = request.GET.get('gender', None)
-        age = request.GET.get('age', None)
-
-        additional_filters = {}
-        if gender:
-            additional_filters.update({'gender': gender})
-        if age:
-            additional_filters.update(get_age_filter(age))
-
-        return {
-            'mode': step,
-            'domain': domain,
-            'location_id': location,
-            'date': test_date,
-            'include_test': include_test,
-            'additional_filters': additional_filters
-        }
+    @property
+    def filters_context(self):
+        return AllFiltersContext()
 
 
 @location_safe
@@ -1287,24 +1264,9 @@ class AdhaarBeneficiariesView(BaseReportJsonView):
     def report_factory(self):
         return AdhaarReportFactory()
 
-    def get_filters(self, request):
-        include_test = request.GET.get('include_test', False)
-        step = self.kwargs.get('step')
-        now = datetime.utcnow()
-        month = int(request.GET.get('month', now.month))
-        year = int(request.GET.get('year', now.year))
-        test_date = datetime(year, month, 1)
-
-        domain = self.kwargs['domain']
-
-        location = request.GET.get('location_id', '')
-        return {
-            'mode': step,
-            'domain': domain,
-            'location_id': location,
-            'date': test_date,
-            'include_test': include_test
-        }
+    @property
+    def filters_context(self):
+        return LocationAndDateFilterContext()
 
 
 @method_decorator([login_and_domain_required], name='dispatch')
