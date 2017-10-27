@@ -1113,5 +1113,6 @@ def get_beneficiary_details(case_id, month):
                 'x': int(row.age_in_months),
                 'y': float(row.recorded_height or 0)
             }
-        beneficiary['wfl'][int((row.recorded_height - 45) * 2)]['y'] = float(row.recorded_weight or 0)
+        if row.recorded_height:
+            beneficiary['wfl'][int((row.recorded_height - 45) * 2)]['y'] = float(row.recorded_weight or 0)
     return beneficiary
