@@ -164,4 +164,14 @@ describe('AdolescentGirlsDirective', function () {
             'Total number of adolescent girls who are enrolled for ICDS services'
         );
     });
+
+    it('tests chart tooltip content', function () {
+        var month = {value: "Jul 2017", series: []};
+
+        var expected = '<p><strong>Jul 2017</strong></p><br/>'
+            + '<p>Total number of adolescent girls who are enrolled for ICDS services: <strong>60</strong></p>';
+
+        var result = controller.tooltipContent(month.value, 60);
+        assert.equal(expected, result);
+    });
 });
