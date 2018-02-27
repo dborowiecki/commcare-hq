@@ -505,6 +505,8 @@ class ChildHealthMonthlyView(models.Model):
     class Meta(object):
         app_label = 'icds_model'
         managed = False
+        # change to child_health_monthly_view_v2 when
+        # join should work on the doc_id which is indexed
         db_table = 'child_health_monthly_view'
 
 

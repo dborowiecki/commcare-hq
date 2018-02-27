@@ -621,5 +621,5 @@ CREATE VIEW child_health_monthly_view_v2 AS
         child_health_monthly.current_month_wasting,
         GREATEST(child_health_monthly.fully_immunized_on_time, child_health_monthly.fully_immunized_late) AS fully_immunized
    FROM "config_report_icds-cas_static-child_health_cases_a46c129f" "child_list"
-     LEFT JOIN child_health_monthly child_health_monthly ON "child_list".case_id = child_health_monthly.case_id
+     LEFT JOIN child_health_monthly child_health_monthly ON "child_list".doc_id = child_health_monthly.case_id
      LEFT JOIN awc_location awc_location ON "child_list".awc_id = awc_location.doc_id;
