@@ -221,8 +221,6 @@ TESTS_SHOULD_TRACK_CLEANLINESS = True
 # see also corehq.apps.sms.tests.util.TouchformsTestCase
 SKIP_TOUCHFORMS_TESTS = True
 
-UNIT_TESTING = True
-
 PILLOWTOP_MACHINE_ID = 'testhq'
 
 ELASTICSEARCH_VERSION = 1.7
