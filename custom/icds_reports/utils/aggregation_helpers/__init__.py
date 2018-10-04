@@ -1,8 +1,9 @@
-from corehq.apps.locations.models import SQLLocation
-from custom.icds_reports.const import DASHBOARD_DOMAIN
-
 from __future__ import absolute_import
 from __future__ import unicode_literals
+
+from datetime import date
+
+from corehq.apps.locations.models import SQLLocation
 
 import hashlib
 

@@ -24,29 +24,29 @@ class BirthPreparednessFormsAggregationHelper(BaseICDSAggregationHelper):
         next_month_start = month_formatter(self.month + relativedelta(months=1))
 
         return """
-        SELECT DISTINCT ccs_record_case_id AS case_id,
-        LAST_VALUE(timeend) OVER w AS latest_time_end,
-        MAX(immediate_breastfeeding) OVER w AS immediate_breastfeeding,
-        LAST_VALUE(eating_extra) OVER w as eating_extra,
-        LAST_VALUE(resting) OVER w as resting,
-        LAST_VALUE(anc_weight) OVER w as anc_weight,
-        LAST_VALUE(anc_blood_pressure) OVER w as anc_blood_pressure,
-        LAST_VALUE(bp_sys) OVER w as bp_sys,
-        LAST_VALUE(bp_dia) OVER w as bp_dia,
-        LAST_VALUE(anc_hemoglobin) OVER w as anc_hemoglobin,
-        LAST_VALUE(bleeding) OVER w as bleeding,
-        LAST_VALUE(swelling) OVER w as swelling,
-        LAST_VALUE(blurred_vision) OVER w as blurred_vision,
-        LAST_VALUE(convulsions) OVER w as convulsions,
-        LAST_VALUE(rupture) OVER w as rupture,
-        LAST_VALUE(anemia) OVER w as anemia,
-        LAST_VALUE(anc_abnormalities) OVER w as anc_abnormalities
-        FROM "{ucr_tablename}"
-        WHERE timeend >= %(current_month_start)s AND timeend < %(next_month_start)s AND state_id = %(state_id)s
-        WINDOW w AS (
-            PARTITION BY ccs_record_case_id
-            ORDER BY timeend RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-        )
+            SELECT DISTINCT ccs_record_case_id AS case_id,
+                LAST_VALUE(timeend) OVER w AS latest_time_end,
+                MAX(immediate_breastfeeding) OVER w AS immediate_breastfeeding,
+                LAST_VALUE(eating_extra) OVER w as eating_extra,
+                LAST_VALUE(resting) OVER w as resting,
+                LAST_VALUE(anc_weight) OVER w as anc_weight,
+                LAST_VALUE(anc_blood_pressure) OVER w as anc_blood_pressure,
+                LAST_VALUE(bp_sys) OVER w as bp_sys,
+                LAST_VALUE(bp_dia) OVER w as bp_dia,
+                LAST_VALUE(anc_hemoglobin) OVER w as anc_hemoglobin,
+                LAST_VALUE(bleeding) OVER w as bleeding,
+                LAST_VALUE(swelling) OVER w as swelling,
+                LAST_VALUE(blurred_vision) OVER w as blurred_vision,
+                LAST_VALUE(convulsions) OVER w as convulsions,
+                LAST_VALUE(rupture) OVER w as rupture,
+                LAST_VALUE(anemia) OVER w as anemia,
+                LAST_VALUE(anc_abnormalities) OVER w as anc_abnormalities
+            FROM "{ucr_tablename}"
+            WHERE timeend >= %(current_month_start)s AND timeend < %(next_month_start)s AND state_id = %(state_id)s
+            WINDOW w AS (
+                PARTITION BY ccs_record_case_id
+                ORDER BY timeend RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+            )
         """.format(ucr_tablename=self.ucr_tablename), {
             "current_month_start": current_month_start,
             "next_month_start": next_month_start,
@@ -66,36 +66,36 @@ class BirthPreparednessFormsAggregationHelper(BaseICDSAggregationHelper):
         query_params.update(ucr_query_params)
 
         return """
-        INSERT INTO "{tablename}" (
-          state_id, month, case_id, latest_time_end_processed,
-          immediate_breastfeeding, anemia, eating_extra, resting,
-          anc_weight, anc_blood_pressure, bp_sys, bp_dia, anc_hemoglobin, 
-          bleeding, swelling, blurred_vision, convulsions, rupture, anc_abnormalities
-        ) (
-          SELECT
-            %(state_id)s AS state_id,
-            %(month)s AS month,
-            ucr.case_id AS case_id,
-            ucr.latest_time_end AS latest_time_end_processed,
-            GREATEST(ucr.immediate_breastfeeding, prev_month.immediate_breastfeeding) AS immediate_breastfeeding,
-            ucr.anemia AS anemia,
-            ucr.eating_extra AS eating_extra,
-            ucr.resting AS resting,
-            ucr.anc_weight anc_weight,
-            ucr.anc_blood_pressure as anc_blood_pressure,
-            ucr.bp_sys as bp_sys,
-            ucr.bp_dia as bp_dia,
-            ucr.anc_hemoglobin as anc_hemoglobin,
-            ucr.bleeding as bleeding,
-            ucr.swelling as swelling,
-            ucr.blurred_vision as blurred_vision,
-            ucr.convulsions as convulsions,
-            ucr.rupture as rupture,
-            ucr.anc_abnormalities as anc_abnormalities
-          FROM ({ucr_table_query}) ucr
-          LEFT JOIN "{previous_month_tablename}" prev_month
-          ON ucr.case_id = prev_month.case_id
-        )
+            INSERT INTO "{tablename}" (
+                state_id, month, case_id, latest_time_end_processed,
+                immediate_breastfeeding, anemia, eating_extra, resting,
+                anc_weight, anc_blood_pressure, bp_sys, bp_dia, anc_hemoglobin, 
+                bleeding, swelling, blurred_vision, convulsions, rupture, anc_abnormalities
+            ) (
+            SELECT
+                %(state_id)s AS state_id,
+                %(month)s AS month,
+                ucr.case_id AS case_id,
+                ucr.latest_time_end AS latest_time_end_processed,
+                GREATEST(ucr.immediate_breastfeeding, prev_month.immediate_breastfeeding) AS immediate_breastfeeding,
+                ucr.anemia AS anemia,
+                ucr.eating_extra AS eating_extra,
+                ucr.resting AS resting,
+                ucr.anc_weight anc_weight,
+                ucr.anc_blood_pressure as anc_blood_pressure,
+                ucr.bp_sys as bp_sys,
+                ucr.bp_dia as bp_dia,
+                ucr.anc_hemoglobin as anc_hemoglobin,
+                ucr.bleeding as bleeding,
+                ucr.swelling as swelling,
+                ucr.blurred_vision as blurred_vision,
+                ucr.convulsions as convulsions,
+                ucr.rupture as rupture,
+                ucr.anc_abnormalities as anc_abnormalities
+            FROM ({ucr_table_query}) ucr
+            LEFT JOIN "{previous_month_tablename}" prev_month
+            ON ucr.case_id = prev_month.case_id
+            )
         """.format(
             ucr_table_query=ucr_query,
             previous_month_tablename=previous_month_tablename,
