@@ -20,24 +20,38 @@ from custom.icds_reports.const import (
     AGG_CCS_RECORD_DELIVERY_TABLE,
     AGG_INFRASTRUCTURE_TABLE,
 )
-from custom.icds_reports.utils.aggregation import (
-    BirthPreparednessFormsAggregationHelper,
-    AggChildHealthAggregationHelper,
-    AwcInfrastructureAggregationHelper,
-    ChildHealthMonthlyAggregationHelper,
-    ComplementaryFormsAggregationHelper,
-    DailyFeedingFormsChildHealthAggregationHelper,
-    GrowthMonitoringFormsAggregationHelper,
-    PostnatalCareFormsChildHealthAggregationHelper,
-    PostnatalCareFormsCcsRecordAggregationHelper,
-    THRFormsChildHealthAggregationHelper,
-    THRFormsCcsRecordAggregationHelper,
-    InactiveAwwsAggregationHelper,
-    DeliveryFormsAggregationHelper,
-    AggCcsRecordAggregationHelper,
-    CcsRecordMonthlyAggregationHelper
-)
 from six.moves import range
+
+from custom.icds_reports.utils.aggregation_helpers.agg_ccs_record import \
+    AggCcsRecordAggregationHelper
+from custom.icds_reports.utils.aggregation_helpers.agg_child_health import \
+    AggChildHealthAggregationHelper
+from custom.icds_reports.utils.aggregation_helpers.awc_infrastructure import \
+    AwcInfrastructureAggregationHelper
+from custom.icds_reports.utils.aggregation_helpers.birth_preparedness_forms import \
+    BirthPreparednessFormsAggregationHelper
+from custom.icds_reports.utils.aggregation_helpers.ccs_record_monthly import \
+    CcsRecordMonthlyAggregationHelper
+from custom.icds_reports.utils.aggregation_helpers.child_health_monthly import \
+    ChildHealthMonthlyAggregationHelper
+from custom.icds_reports.utils.aggregation_helpers.complementary_forms import \
+    ComplementaryFormsAggregationHelper
+from custom.icds_reports.utils.aggregation_helpers.daily_feeding_forms_child_health import \
+    DailyFeedingFormsChildHealthAggregationHelper
+from custom.icds_reports.utils.aggregation_helpers.delivery_forms import \
+    DeliveryFormsAggregationHelper
+from custom.icds_reports.utils.aggregation_helpers.growth_monitoring_forms import \
+    GrowthMonitoringFormsAggregationHelper
+from custom.icds_reports.utils.aggregation_helpers.inactive_awws import \
+    InactiveAwwsAggregationHelper
+from custom.icds_reports.utils.aggregation_helpers.postnatal_care_forms_ccs_record import \
+    PostnatalCareFormsCcsRecordAggregationHelper
+from custom.icds_reports.utils.aggregation_helpers.postnatal_care_forms_child_health import \
+    PostnatalCareFormsChildHealthAggregationHelper
+from custom.icds_reports.utils.aggregation_helpers.thr_forms_child_health import \
+    THRFormsChildHealthAggregationHelper
+from custom.icds_reports.utils.aggregation_helpers.thr_froms_ccs_record import \
+    THRFormsCcsRecordAggregationHelper
 
 
 class CcsRecordMonthly(models.Model):
