@@ -12,7 +12,8 @@ from custom.icds_reports.const import (
     AGG_DAILY_FEEDING_TABLE,
     AGG_GROWTH_MONITORING_TABLE,
 )
-from custom.icds_reports.utils.aggregation_helpers import BaseICDSAggregationHelper, transform_day_to_month
+from custom.icds_reports.utils.aggregation_helpers import BaseICDSAggregationHelper, transform_day_to_month, \
+    month_formatter
 
 
 class ChildHealthMonthlyAggregationHelper(BaseICDSAggregationHelper):
