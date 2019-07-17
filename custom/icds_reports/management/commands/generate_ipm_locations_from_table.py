@@ -3,8 +3,8 @@ from sqlagg.columns import SimpleColumn
 from corehq.apps.locations.models import SQLLocation, LocationType
 from corehq.apps.reports.sqlreport import SqlData, DatabaseColumn
 from corehq.apps.userreports.util import get_table_name
+from django.core.exceptions import ObjectDoesNotExist
 
-from django.core.management import CommandError
 from django.core.management.base import BaseCommand
 
 
@@ -54,58 +54,114 @@ class ChampFilter(SqlData):
         return self.get_data()
 
 
+def get_parent(parent_id):
+    parent = None
+    try:
+        parent = SQLLocation.objects.get(location_id__exact=parent_id)
+    except ObjectDoesNotExist:
+        if parent_id is not None:
+            print('Parent with ID \'{}\' was not found'.format(parent_id))
+    parent_id = parent.id if parent is not None else None
+
+    return parent_id
+
+
+def get_dictionary(args):
+    locations_data = {
+        'domain': 'ipm-senegal',
+        'name': args[0],
+        'location_id': args[1],
+        'location_type_id': args[2],
+        'site_code': args[3],
+        'parent_id': args[4],
+    }
+
+    return locations_data
+
+
+def create_record(location):
+    try:
+        SQLLocation.objects.create(domain=location['domain'], name=location['name'],
+                                   location_id=location['location_id'], parent_id=location['parent_id'],
+                                   location_type_id=location['location_type_id'], site_code=location['site_code'],)
+        if location['location_id'] is not None:
+            print('Created location \'{}\' with ID \'{}\''.format(location['name'], location['location_id']))
+    except KeyError:
+        print('Location \'{}\' with ID \'{}\' already exists'.format(location['name'], location['location_id']))
+    except Exception as err:
+        print('Unhandled error: {}'.format(err.message))
+
+
 class Command(BaseCommand):
 
-    help = 'Adds locations needed for IPM based on ucr_ipm-senegal_operateur_combined_fe20409e table'
+    help = 'Adds locations type and locations needed for IPM based on operateur_combined table'
 
     def add_arguments(self, parser):
         pass
 
     def handle(self, *args, **options):
+        print('Creating location types...')
+        region_type_exists = LocationType.objects.filter(name='region', domain='ipm-senegal').exists()
+        district_type_exists = LocationType.objects.filter(name='region', domain='ipm-senegal').exists()
+        pps_type_exists = LocationType.objects.filter(name='region', domain='ipm-senegal').exists()
+
+        if region_type_exists:
+            print('Type \'region\' for domain \'ipm-senegal\' already exists')
+        else:
+            LocationType.objects.create(name='region', domain='ipm-senegal')
+            print('Created location type \'region\'')
+
+        if district_type_exists:
+            print('Type \'district\' for domain \'ipm-senegal\' already exists')
+        else:
+            LocationType.objects.create(name='district', domain='ipm-senegal')
+            print('Created location type \'district\'')
+
+        if pps_type_exists:
+            print('Type \'pps\' for domain \'ipm-senegal\' already exists')
+        else:
+            LocationType.objects.create(name='pps', domain='ipm-senegal')
+            print('Created location type \'pps\'')
+
+        region_type_id = LocationType.objects.get(name='region', domain='ipm-senegal').id
+        district_type_id = LocationType.objects.get(name='district', domain='ipm-senegal').id
+        pps_type_id = LocationType.objects.get(name='pps', domain='ipm-senegal').id
         rows = ChampFilter().data
-        locations_data = []
         site_code = 0
 
-        # ['region_id', 'district_id', 'pps_id', 'district_name', 'pps_name', 'region_name']
-        # SQLLocation(name)
+        print('Creating locations...')
         for row in rows:
             pps_id = row['pps_id']
             pps_name = row['pps_name']
             pps_exists = SQLLocation.objects.filter(location_id__exact=pps_id).exists()
+
             if not pps_exists:
                 district_id = row['district_id']
                 district_name = row['district_name']
                 district_exists = SQLLocation.objects.filter(location_id__exact=district_id).exists()
+
                 if not district_exists:
                     region_id = row['region_id']
                     region_name = row['region_name']
                     region_exists = SQLLocation.objects.filter(location_id__exact=region_id).exists()
+
                     if not region_exists:
-                        location_type = LocationType.objects.get(name='region', domain='ipm-senegal')
-                        location_type_id = location_type.id
-                        SQLLocation.objects.create(domain='ipm-senegal', name=region_name,
-                                                   location_id=region_id,
-                                                   location_type_id=location_type_id,
-                                                   site_code=site_code)
+                        parent_id = None
+                        args = [region_name, region_id, region_type_id, site_code, parent_id]
+                        locations_data = get_dictionary(args)
+                        create_record(locations_data)
                         site_code += 1
-                    location_type = LocationType.objects.get(name='district', domain='ipm-senegal')
-                    location_type_id = location_type.id
-                    parent = SQLLocation.objects.get(location_id__exact=region_id)
-                    parent_id = parent.id
-                    SQLLocation.objects.create(domain='ipm-senegal', name=district_name,
-                                               location_id=district_id,
-                                               location_type_id=location_type_id,
-                                               site_code=site_code,
-                                               parent_id=parent_id)
+
+                    parent_id = get_parent(region_id)
+                    args = [district_name, district_id, district_type_id, site_code, parent_id]
+                    locations_data = get_dictionary(args)
+                    create_record(locations_data)
                     site_code += 1
-                location_type = LocationType.objects.get(name='pps', domain='ipm-senegal')
-                location_type_id = location_type.id
-                parent = SQLLocation.objects.get(location_id__exact=district_id)
-                parent_id = parent.id
-                SQLLocation.objects.create(domain='ipm-senegal', name=pps_name,
-                                           location_id=pps_id,
-                                           location_type_id=location_type_id,
-                                           site_code=site_code,
-                                           parent_id=parent_id)
+
+                parent_id = get_parent(district_id)
+                args = [pps_name, pps_id, pps_type_id, site_code, parent_id]
+                locations_data = get_dictionary(args)
+                create_record(locations_data)
                 site_code += 1
+
         print('Created {} locations'.format(site_code))
