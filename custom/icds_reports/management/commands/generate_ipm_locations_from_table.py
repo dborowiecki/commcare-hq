@@ -54,7 +54,15 @@ class ChampFilter(SqlData):
         return self.get_data()
 
 
-def get_parent(parent_id):
+def _create_type(name):
+    try:
+        LocationType.objects.create(name=name, domain='ipm-senegal')
+        print('Created location type \'region\'')
+    except Exception as err:
+        print('Unhandled error: {}'.format(err.message))
+
+
+def _get_parent(parent_id):
     parent = None
     try:
         parent = SQLLocation.objects.get(location_id__exact=parent_id)
@@ -66,7 +74,7 @@ def get_parent(parent_id):
     return parent_id
 
 
-def get_dictionary(args):
+def _get_dictionary(args):
     locations_data = {
         'domain': 'ipm-senegal',
         'name': args[0],
@@ -79,7 +87,7 @@ def get_dictionary(args):
     return locations_data
 
 
-def create_record(location):
+def _create_record(location):
     try:
         SQLLocation.objects.create(domain=location['domain'], name=location['name'],
                                    location_id=location['location_id'], parent_id=location['parent_id'],
@@ -89,7 +97,7 @@ def create_record(location):
     except KeyError:
         print('Location \'{}\' with ID \'{}\' already exists'.format(location['name'], location['location_id']))
     except Exception as err:
-        print('Unhandled error: {}'.format(err.message))
+        print('Unhandled error: {}'.format(err))
 
 
 class Command(BaseCommand):
@@ -108,20 +116,17 @@ class Command(BaseCommand):
         if region_type_exists:
             print('Type \'region\' for domain \'ipm-senegal\' already exists')
         else:
-            LocationType.objects.create(name='region', domain='ipm-senegal')
-            print('Created location type \'region\'')
+            _create_type('region')
 
         if district_type_exists:
             print('Type \'district\' for domain \'ipm-senegal\' already exists')
         else:
-            LocationType.objects.create(name='district', domain='ipm-senegal')
-            print('Created location type \'district\'')
+            _create_type('district')
 
         if pps_type_exists:
             print('Type \'pps\' for domain \'ipm-senegal\' already exists')
         else:
-            LocationType.objects.create(name='pps', domain='ipm-senegal')
-            print('Created location type \'pps\'')
+            _create_type('pps')
 
         region_type_id = LocationType.objects.get(name='region', domain='ipm-senegal').id
         district_type_id = LocationType.objects.get(name='district', domain='ipm-senegal').id
@@ -148,20 +153,20 @@ class Command(BaseCommand):
                     if not region_exists:
                         parent_id = None
                         args = [region_name, region_id, region_type_id, site_code, parent_id]
-                        locations_data = get_dictionary(args)
-                        create_record(locations_data)
+                        locations_data = _get_dictionary(args)
+                        _create_record(locations_data)
                         site_code += 1
 
-                    parent_id = get_parent(region_id)
+                    parent_id = _get_parent(region_id)
                     args = [district_name, district_id, district_type_id, site_code, parent_id]
-                    locations_data = get_dictionary(args)
-                    create_record(locations_data)
+                    locations_data = _get_dictionary(args)
+                    _create_record(locations_data)
                     site_code += 1
 
-                parent_id = get_parent(district_id)
+                parent_id = _get_parent(district_id)
                 args = [pps_name, pps_id, pps_type_id, site_code, parent_id]
-                locations_data = get_dictionary(args)
-                create_record(locations_data)
+                locations_data = _get_dictionary(args)
+                _create_record(locations_data)
                 site_code += 1
 
         print('Created {} locations'.format(site_code))
