@@ -385,8 +385,9 @@ function DownloadController($rootScope, $location, locationHierarchy, locationsS
     };
 
     vm.onIndicatorSelect = function() {
+        vm.resetForm();
+        init();
         if (vm.isChildBeneficiaryListSelected()) {
-            init();
             vm.selectedFormat = vm.formats[0].id;
         } else {
             vm.onSelectYear({'id': vm.selectedYear});
@@ -436,7 +437,7 @@ function DownloadController($rootScope, $location, locationHierarchy, locationsS
         vm.selectedLevel = 1;
         vm.selectedMonth = new Date().getMonth() + 1;
         vm.selectedYear = new Date().getFullYear();
-        vm.selectedIndicator = 1;
+        vm.selectedIndicator = vm.selectedIndicator;
         vm.selectedFormat = 'xlsx';
         vm.selectedPDFFormat = 'many';
         initHierarchy();
