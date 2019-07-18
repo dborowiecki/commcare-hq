@@ -385,7 +385,7 @@ function DownloadController($rootScope, $location, locationHierarchy, locationsS
     };
 
     vm.onIndicatorSelect = function() {
-        vm.resetForm();
+        vm.resetForm(vm.selectedIndicator);
         init();
         if (vm.isChildBeneficiaryListSelected()) {
             vm.selectedFormat = vm.formats[0].id;
@@ -430,14 +430,15 @@ function DownloadController($rootScope, $location, locationHierarchy, locationsS
         vm.previousTaskFailed = null;
     };
 
-    vm.resetForm = function() {
+    vm.resetForm = function(indicator = null) {
+        console.log(indicator);
         vm.hierarchy = [];
         vm.selectedLocations = [];
         vm.selectedLocationId = userLocationId;
         vm.selectedLevel = 1;
         vm.selectedMonth = new Date().getMonth() + 1;
         vm.selectedYear = new Date().getFullYear();
-        vm.selectedIndicator = vm.selectedIndicator;
+        vm.selectedIndicator = indicator === null ? 1 : vm.selectedIndicator;
         vm.selectedFormat = 'xlsx';
         vm.selectedPDFFormat = 'many';
         initHierarchy();
