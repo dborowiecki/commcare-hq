@@ -57,7 +57,7 @@ class ChampFilter(SqlData):
 def _create_type(name):
     try:
         LocationType.objects.create(name=name, domain='ipm-senegal')
-        print('Created location type \'region\'')
+        print('Created location type \'{}\''.format(name))
     except Exception as err:
         print('Unhandled error: {}'.format(err.message))
 
