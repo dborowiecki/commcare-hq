@@ -1,12 +1,18 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+import requests
 from copy import deepcopy
 
+from django.http import QueryDict
 from django.urls import reverse
 from django.utils.http import urlencode
+from django.test.client import RequestFactory
 
 from flaky import flaky
+from tastypie.exceptions import BadRequest
+
+from tastypie.resources import Resource
 
 from corehq.apps.api.resources import v0_5
 from corehq.apps.groups.models import Group
@@ -356,6 +362,20 @@ class FakeUserES(object):
         end = min(len(self.docs), start + int(size)) if size else None
         return self.docs[start:end]
 
+class BundleMock(object):
+
+    def __init__(self, **params):
+        query = ''
+        for querykey in params:
+            query = query + '{}={}&'.format(
+                    querykey,
+                    '&{}='.format(querykey).join(params.get(querykey))
+                    )
+        q = QueryDict(query, mutable=True)
+        request = RequestFactory().get(TestBulkUserAPI.list_endpoint)
+        request.GET = q
+        self.request = request
+
 
 class TestBulkUserAPI(APIResourceTest):
     resource = v0_5.BulkUserResource
@@ -436,3 +456,19 @@ class TestBulkUserAPI(APIResourceTest):
     def test_basic(self):
         response = self.query()
         self.assertEqual(response.status_code, 200)
+
+    def test_obj_get_list(self):
+        x = v0_5.BulkUserResource()
+        base_bundle = BundleMock(**{'fields': ['username', 'first_name'],
+                                    'limit': '3'
+                                    })
+        actual = x.obj_get_list(bundle=base_bundle, domain=self.domain)
+        print(actual)
+        self.assertTrue(isinstance(actual, list))
+        self.assertEqual(len(actual), 3)
+
+    def test_obj_get_list_wrong_fields(self):
+        x = v0_5.BulkUserResource()
+        base_bundle = BundleMock(**{'fields': ['wrong_field', 'first_name']})
+        with self.assertRaises(BadRequest):
+            x.obj_get_list(bundle=base_bundle, domain=self.domain)
