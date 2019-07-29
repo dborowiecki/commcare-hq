@@ -17,6 +17,7 @@ from tastypie.exceptions import BadRequest, NotFound, ImmediateHttpResponse
 from tastypie.resources import Resource
 
 from corehq.apps.api.resources import v0_5
+from corehq.apps.api.resources.v0_5 import StockTransactionResource
 from corehq.apps.groups.models import Group
 from corehq.apps.users.analytics import update_analytics_indexes
 from corehq.apps.users.models import (
@@ -585,3 +586,45 @@ class TestDomainForms(APIResourceTest):
         result = api.obj_get_list(bundle, domain=self.domain.name)
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 0)
+
+
+class TestStockTransactionResource(APIResourceTest):
+    resource = v0_5.StockTransactionResource
+    api_name = 'v0.5'
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestStockTransactionResource, cls).setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super(TestStockTransactionResource, cls).tearDownClass()
+
+    def test_building_filters(self):
+        date1 = 'start'
+        date2 = 'end'
+        api = v0_5.StockTransactionResource()
+        filters = {'start_date': date1,
+                   'end_date': date2}
+        orm_filters = api.build_filters(filters=filters)
+        self.assertEqual(orm_filters['report__date__gte'], date1)
+        self.assertEqual(orm_filters['report__date__lte'], date2)
+
+    def test_dehydrate(self):
+        bm = self.create_hydrated_bundle()
+        api = v0_5.StockTransactionResource()
+
+        bundle = api.dehydrate(bm)
+        self.assertEqual(bundle.data['product_name'], 'name')
+        self.assertEqual(bundle.data['transaction_date'], 'date')
+
+    @classmethod
+    def create_hydrated_bundle(cls):
+        bm = mock.Mock()
+        bm.data = {}
+        bm.obj = mock.Mock()
+        bm.obj.sql_product = mock.Mock()
+        bm.obj.sql_product.name = 'name'
+        bm.obj.report = mock.Mock()
+        bm.obj.report.date = 'date'
+        return bm
