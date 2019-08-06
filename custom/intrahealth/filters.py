@@ -18,6 +18,7 @@ from six.moves import filter
 
 from custom.intrahealth.sqldata import ProgramData, ProductData, ProductsInProgramWithNameData
 
+
 class LocationFilter(AsyncLocationFilter):
     label = ugettext_noop("Region")
     slug = "ih_location_async"
@@ -176,12 +177,33 @@ class ProgramFilter(BaseReportFilter):
 class ProgramsAndProductsFilter(BaseDrilldownOptionFilter):
     slug = 'product'
     label = 'Programmes et produits'
+    template = "yeksi_naa/program_product_filter.html"
 
     def get_labels(self):
         return [
                 ('Programme', 'All', 'program'),
                 ('Produit', 'All', 'product'),
             ]
+
+    def program_products(self):
+        program_context = ProductsInProgramWithNameData(config={'domain': self.domain}).rows
+        all_products = ProductData(config={'domain': self.domain}).rows
+        program_filter = []
+        for program in program_context:
+            program_products = program[2].split()
+            for product in all_products:
+                programs = []
+                product_id, name = product[0], product[1]
+                if product[0] in program_products:
+                    programs.append({
+                        'name': name,
+                        'value': product_id
+                    })
+                program_filter.append({
+                    'name': program[1],
+                    'value': programs
+                })
+        return program_filter
 
     @property
     def drilldown_map(self):
@@ -209,3 +231,10 @@ class ProgramsAndProductsFilter(BaseDrilldownOptionFilter):
                 ]
             })
         return rows
+
+    @property
+    def filter_context(self):
+        return {
+            'product': self.program_products(),
+            'chosen_products': self.request.GET.get('products', ''),
+        }
