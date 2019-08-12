@@ -1,0 +1,42 @@
+{% extends 'reports/filters/base.html' %}
+{% load hq_shared_tags %}
+{% block filter_content %}
+  {% if not endpoint %}
+      <select class="report-filter-single-option-parametrized-parameters"
+              id="{{ css_id }}"
+              data-select-options="{% html_attr select.options %}"
+              data-selected="{{ select.parameter|safe|default:'All' }}"
+              data-bind="options: select_params, optionsText: 'text', optionsValue: 'val', {% if select.default_text %}optionsCaption: '{{ select.default_text|escapejs }}', {% endif %}value: current_selection"
+              name="{{ slug }}_parameter">
+      </select>
+<select class="{{ css_class }} form-control report-filter-single-option-parametrized"
+              multiple="true"
+              data-bind="options: select_params, optionsText: 'text', optionsValue: 'val', {% if select.default_text %}optionsCaption: '{{ select.default_text|escapejs }}', {% endif %}value: current_selection"
+              data-selected="{% html_attr select.selected %}"
+              style="width:100%"
+              data-select-options="{% html_attr select.options %}"
+              name="{{ slug }}"></select>
+
+  {% else %}
+    <!--select id="{{ css_id }}"
+            data-select-options="{% html_attr select.options.programs %}"
+            data-selected="{{ select.parameter|safe|default:'All' }}"
+            class="report-filter-single-option-parametrized"
+            style="width: 100%"
+            data-bind="options: select_params, optionsText: 'text', optionsValue: 'val', {% if select.default_text %}optionsCaption: '{{ select.default_text|escapejs }}', {% endif %}value: current_selection"
+            name="{{ slug }}_parameter"></select-->
+
+    <select data-endpoint="{% html_attr endpoint %}"
+            data-options="{% html_attr select.product_options %}"
+            data-selected="{% html_attr select.selected %}"
+            class="{{ css_class }} form-control report-filter-multi-option"
+            placeholder="{{ select.placeholder }}"
+            name="{{ slug }}"></select>
+  {% endif %}
+  {% if filter_help_inline or search_help_inline %}
+    <span class="help-block">
+      <i class="fa fa-info-circle"></i>
+      {{ filter_help_inline }} {{ search_help_inline }}
+    </span>
+  {% endif %}
+{% endblock %}
