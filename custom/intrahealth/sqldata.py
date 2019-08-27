@@ -5954,7 +5954,11 @@ class IndicateursDeBaseData(SqlData):
             all_wanted_rows = rows_with_wanted_date
 
         def clean_rows(data_to_clean):
-            sorted_rows = sorted(data_to_clean, key=lambda x: x[self.loc_name])
+            for data_row in data_to_clean:
+                data_row[self.loc_name] = data_row.get(self.loc_name, '')
+                data_row[self.loc_id] = data_row.get(self.loc_id, '')
+
+            sorted_rows = sorted(data_to_clean, key=lambda x: x.get(self.loc_name, ' '))
             added_locations = []
             data_for_locations = {}
             data_to_return = []
