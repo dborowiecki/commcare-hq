@@ -628,3 +628,77 @@ class TestStockTransactionResource(APIResourceTest):
         bm.obj.report = mock.Mock()
         bm.obj.report.date = 'date'
         return bm
+
+
+class TestGroupResource(APIResourceTest):
+    resource = v0_5.GroupResource
+    api_name = 'v0.5'
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestGroupResource, cls).setUpClass()
+        cls.group = Group({"name": "test"})
+        cls.group.domain = 'test_domain'
+        cls.group.save()
+
+    @classmethod
+    def tearDownClass(cls):
+        super(TestGroupResource, cls).tearDownClass()
+        cls.group.delete()
+        group = Group.by_name(domain="test_domain", name="test_new")
+        group.delete()
+
+    @property
+    def list_endpoint(self):
+        return reverse(
+            'api_dispatch_list',
+            kwargs={
+                'domain': self.domain.name,
+                'api_name': self.api_name,
+                'resource_name': self.resource.Meta.resource_name,
+            }
+        )
+
+    def test_patch_list_no_object_collection(self):
+        api = v0_5.GroupResource()
+        body = {"some": {
+                    "irrelevant": "data"
+                }}
+        request = RequestFactory().post(self.list_endpoint,
+                                        data=json.dumps(body),
+                                        content_type='application/json')
+
+        print("URL REVERSE: {}".format(self.list_endpoint))
+        request.method = "POST"
+
+        with self.assertRaises(BadRequest):
+            api.patch_list(request)
+
+    #TODO: it seems that this methods are invalid and throw attribute error caused by wrong data format
+    # passed to serialization
+
+    # def test_patch_list_existing_group(self):
+    #     api = v0_5.GroupResource()
+    #     body = {"objects": [
+    #         {"domain": 'test_domain', "name": "test"}
+    #          ]}
+    #     request = RequestFactory().post(self.list_endpoint,
+    #                                     data=json.dumps(body),
+    #                                     content_type='application/json')
+    #     print("URL REVERSE: {}".format(self.list_endpoint))
+    #     request.method = "POST"
+    #     response = api.patch_list(request, domain='test_domain')
+    # def test_patch_list_new_group(self):
+    #     api = v0_5.GroupResource()
+    #     body = {"objects": [
+    #         {"domain": 'test_domain', "name": "test_new"}
+    #          ]}
+    #     request = RequestFactory().post(self.list_endpoint,
+    #                                     data=json.dumps(body),
+    #                                     content_type='application/json')
+    #     print("URL REVERSE: {}".format(self.list_endpoint))
+    #     request.method = "POST"
+    #     response = api.patch_list(request, domain='test_domain')
+
+
+

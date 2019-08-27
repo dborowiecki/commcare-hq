@@ -372,6 +372,7 @@ class GroupResource(v0_4.GroupResource):
         always_return_data = True
 
     def serialize(self, request, data, format, options=None):
+        print("DATA TAKA: {}".format(data))
         if not isinstance(data, dict):
             if 'error_message' in data.data:
                 data = {'error_message': data.data['error_message']}
@@ -380,6 +381,7 @@ class GroupResource(v0_4.GroupResource):
         return self._meta.serializer.serialize(data, format, options)
 
     def patch_list(self, request=None, **kwargs):
+        #TODO: This method probably works incorrectly and try to serialize list which is impossible
         """
         Exactly copied from https://github.com/toastdriven/django-tastypie/blob/v0.9.14/tastypie/resources.py#L1466
         (BSD licensed) and modified to pass the kwargs to `obj_create` and support only create method
@@ -388,6 +390,7 @@ class GroupResource(v0_4.GroupResource):
         deserialized = self.deserialize(request, request.body, format=request.META.get('CONTENT_TYPE', 'application/json'))
 
         collection_name = self._meta.collection_name
+        print("COLLECTION NAME: {}".format(collection_name))
         if collection_name not in deserialized:
             raise BadRequest("Invalid data sent: missing '%s'" % collection_name)
 
@@ -409,6 +412,7 @@ class GroupResource(v0_4.GroupResource):
             bundles_seen.append(bundle)
 
         to_be_serialized = [bundle.data['_id'] for bundle in bundles_seen]
+        print(to_be_serialized)
         return self.create_response(request, to_be_serialized, response_class=status)
 
     def post_list(self, request, **kwargs):
