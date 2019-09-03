@@ -9,7 +9,7 @@ from copy import deepcopy
 from django.http import QueryDict
 from django.urls import reverse
 from django.utils.http import urlencode
-from django.test.client import RequestFactory
+from django.test.client import RequestFactory, Client
 
 from flaky import flaky
 from tastypie.exceptions import BadRequest, NotFound, ImmediateHttpResponse
@@ -17,7 +17,7 @@ from tastypie.exceptions import BadRequest, NotFound, ImmediateHttpResponse
 from tastypie.resources import Resource
 
 from corehq.apps.api.resources import v0_5
-from corehq.apps.api.resources.v0_5 import StockTransactionResource
+from corehq.apps.api.resources.v0_5 import StockTransactionResource, UserDomain
 from corehq.apps.groups.models import Group
 from corehq.apps.users.analytics import update_analytics_indexes
 from corehq.apps.users.models import (
@@ -701,4 +701,63 @@ class TestGroupResource(APIResourceTest):
     #     response = api.patch_list(request, domain='test_domain')
 
 
+class TestUserDomainsResource(APIResourceTest):
+    resource = v0_5.UserDomainsResource
+    api_name = 'v0.5'
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestUserDomainsResource, cls).setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super(TestUserDomainsResource, cls).tearDownClass()
+
+    @classmethod
+    def _get_list_endpoint(cls):
+        return cls.list_endpoint
+
+    @property
+    def list_endpoint(self):
+        return reverse('api_dispatch_list',
+            kwargs={
+                'api_name': 'global',
+                'resource_name': self.resource.Meta.resource_name,
+            }
+        )
+
+    def test_obj_get_list(self):
+        bundle = BundleMock(user=self.user)
+        bundle.request.user = self.user
+        user_domains = v0_5.UserDomainsResource()
+        expected = UserDomain(
+            domain_name=self.domain.name,
+            project_name=self.domain.hr_name or self.domain.name)
+        actual = user_domains.obj_get_list(bundle)
+
+        self.assertEqual(len(actual), 1)
+        self.assertIn(expected, actual)
+
+    # TODO: Need further check, obj_create method is not implemented in class UserDomainsResource and throws
+    #  NotImplementedError
+    # def test_dispatch_list(self):
+    #     user_domains = self.resource()
+    #
+    #     body = {
+    #         "api_key": self.api_key.key,
+    #         "username": self.username}
+    #
+    #     request = RequestFactory().post(self.list_endpoint,
+    #                                     data=json.dumps(body),
+    #                                     content_type='application/json')
+    #     request.method = "POST"
+    #     request.POST = QueryDict('', mutable=True)
+    #     request.POST.update(body)
+    #     request.user = self.user
+    #     request.api_key = self.api_key.key
+    #
+    #     result = user_domains.dispatch_list(request=request,
+    #                                         api_key=self.api_key.key,
+    #                                         username=self.user.name,
+    #                                         type="user")
 
