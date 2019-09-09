@@ -361,6 +361,8 @@ HQ_APPS = (
     'custom.hki',
     'custom.champ',
     'custom.aaa',
+
+    'custom.inddex',
 )
 
 # any built-in management commands we want to override should go in hqscripts
@@ -1806,7 +1808,7 @@ STATIC_UCR_REPORTS = [
     os.path.join('custom', 'echis_reports', 'ucr', 'reports', '*.json'),
     os.path.join('custom', 'aaa', 'ucr', 'reports', '*.json'),
 
-    os.path.join('custom', 'inddex', 'reports','*.json'),
+    os.path.join('custom', 'inddex', 'reports', '*.json'),
 ]
 
 
@@ -1876,7 +1878,7 @@ STATIC_DATA_SOURCES = [
     os.path.join('custom', 'echis_reports', 'ucr', 'data_sources', '*.json'),
     os.path.join('custom', 'aaa', 'ucr', 'data_sources', '*.json'),
 
-    os.path.join('custom', 'inddex', 'reports', 'data_sources', '*.json'),
+    os.path.join('custom', 'inddex', 'data_sources', '*.json'),
 ]
 
 STATIC_DATA_SOURCE_PROVIDERS = [
@@ -1996,6 +1998,7 @@ DOMAIN_MODULE_MAP = {
     # Used in tests.  TODO - use override_settings instead
     'ewsghana-test-input-stock': 'custom.ewsghana',
     'test-pna': 'custom.intrahealth',
+    'test-inddex': 'custom.inddex',
 
     #vectorlink domains
     'abtmali': 'custom.abt',
