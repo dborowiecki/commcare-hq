@@ -1,10 +1,10 @@
 from corehq.apps.reports.filters.dates import DatespanFilter
 from corehq.apps.reports.filters.fixtures import AsyncLocationFilter
 from custom.inddex.filters import AgeFilter, SexFilter, SettlementAreaFilter, PregnancyLactationStatus
-from custom.inddex.ucr.multi_tabular_report import MultiTabularReport
+from custom.inddex.ucr.report_bases.multi_tabular_report import MultiTabularReport
 
 
-class SummaryStatisticsReport(MultiTabularReport):
+class SummaryStatisticsReportBase(MultiTabularReport):
     title = "Summary Statistics Report"
     name = "Summary Statistics Reports"
     slug = 'summary_statistics_report'
@@ -37,8 +37,8 @@ class SummaryStatisticsReport(MultiTabularReport):
 
     @property
     def age_range(self):
-        age_from = self.request.GET.get('age_from') or 0
-        age_to = self.request.GET.get('age_to') or 100
+        age_from = self.request.GET.get('age_from')
+        age_to = self.request.GET.get('age_to')
         return age_from, age_to
 
     @property

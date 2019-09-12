@@ -3,28 +3,15 @@ from django.utils.translation import ugettext_noop
 from corehq.apps.reports.filters.base import BaseSingleOptionFilter, BaseReportFilter, BaseDrilldownOptionFilter
 
 
-class AgeFilter(BaseDrilldownOptionFilter):
+class AgeFilter(BaseSingleOptionFilter):
     slug = 'age'
     label = 'Age'
-
-    @classmethod
-    def get_labels(cls):
-        return [
-            ('From', 'Age...', 'from'),
-            ('To', 'Age...', 'to'),
-        ]
+    template = 'inddex/filters/age_filter.html'
+    default_text = ugettext_noop("All")
 
     @property
-    def drilldown_map(self):
-        return [{
-            'val': 0,
-            'text': '0',
-            'next': [{
-                'val': 100,
-                'text': "100",
-            }]
-        }
-        ]
+    def options(self):
+        return [(str(k), str(k))for k in range(0, 5)]
 
 
 class SexFilter(BaseSingleOptionFilter):

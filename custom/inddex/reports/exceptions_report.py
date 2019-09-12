@@ -1,9 +1,7 @@
 from memoized import memoized
 
 from corehq.apps.reports.datatables import DataTablesColumn, DataTablesHeader
-from corehq.apps.reports.generic import GenericTabularReport
-from corehq.apps.reports.standard import CustomProjectReport
-from custom.inddex.ucr.multi_tabular_report import MultiTabularReport
+from custom.inddex.ucr.report_bases.multi_tabular_report import MultiTabularReport
 
 
 class MockDataProvider():
