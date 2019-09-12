@@ -5,6 +5,7 @@ from corehq.apps.reports.filters.dates import DatespanFilter
 from corehq.apps.reports.filters.fixtures import AsyncLocationFilter
 from corehq.apps.reports.generic import GenericTabularReport
 from corehq.apps.reports.standard import CustomProjectReport
+from custom.inddex.utils import MultiSheetReportExport
 
 
 class MultiTabularReport(CustomProjectReport, GenericTabularReport):
@@ -33,6 +34,16 @@ class MultiTabularReport(CustomProjectReport, GenericTabularReport):
 
         return context
 
+    @property
+    @memoized
+    def report_export(self):
+        prepared_data = [self.format_table_to_export(dp) for dp in self.data_providers]
+        return MultiSheetReportExport(self.title, prepared_data)
+
+    @property
+    def export_table(self):
+        return self.report_export.get_table()
+
     def get_report_context(self, data_provider):
         self.data_source = data_provider
         if self.needs_filters:
@@ -52,6 +63,12 @@ class MultiTabularReport(CustomProjectReport, GenericTabularReport):
         )
 
         return context
+
+    def format_table_to_export(self, data_provider):
+        exported_rows = [[header.html for header in data_provider.headers]]
+        exported_rows.extend(data_provider.rows)
+        title = data_provider.slug
+        return title, exported_rows
 
     @property
     def report_config(self):
