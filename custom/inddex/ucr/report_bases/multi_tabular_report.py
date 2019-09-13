@@ -9,7 +9,9 @@ from custom.inddex.utils import MultiSheetReportExport
 
 
 class MultiTabularReport(CustomProjectReport, GenericTabularReport):
-    title = ''
+    title = 'Multi report'
+    name = 'Multi Report'
+    slug = 'multi_report'
     report_template_path = "inddex/multi_report.html"
     flush_layout = True
 
