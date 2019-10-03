@@ -31,7 +31,7 @@ from pillowtop.es_utils import initialize_index_and_mapping
 class TestElasticsearchReportMixin:
 
     @classmethod
-    def setup_class(cls):
+    def create_setup(cls):
         cls.es = get_es_new()
         cls.make_domain()
         cls.make_user()
@@ -120,7 +120,7 @@ class TestElasticsearchReportMixin:
     def make_user(cls):
         user = CommCareUser.create(
             domain=cls.domain_name,
-            username='don_mclean',
+            username='don_mclean@{}.commcarehq.org'.format(cls.domain_name),
             password='*****',
             email='simple@email.com'
         )
